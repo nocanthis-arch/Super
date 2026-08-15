@@ -1,0 +1,2076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Thing · Smart Chat</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============ THING v1 — white & black professional theme ============ */
+:root{
+  --bg:#ffffff; --bg2:#fafafa; --panel:#ffffff; --panel2:#f4f4f5; --panel3:#e9e9ec;
+  --line:#e4e4e7; --line2:#d4d4d8; --txt:#18181b; --mut:#6e6e77; --mut2:#a1a1aa;
+  --acc:#18181b; --good:#16a34a; --bad:#dc2626; --warn:#b45309;
+  --f-sans:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-mono:'JetBrains Mono',ui-monospace,monospace;
+  --shadow:0 10px 30px rgba(0,0,0,.08);
+  --shadow-lg:0 18px 50px rgba(0,0,0,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--f-sans); background:var(--bg); color:var(--txt);
+  overflow:hidden; -webkit-font-smoothing:antialiased; user-select:none;
+}
+#bgfx{position:fixed;inset:0;pointer-events:none;z-index:0;background:var(--bg)}
+#bgfx::after{content:"";position:absolute;inset:0;
+  background-image:linear-gradient(rgba(0,0,0,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.025) 1px,transparent 1px);
+  background-size:44px 44px; mask-image:radial-gradient(ellipse at 50% 20%,#000 20%,transparent 70%)}
+
+/* ---------- TOP BAR ---------- */
+.topbar{position:relative;z-index:60;height:60px;display:flex;align-items:center;gap:12px;
+  padding:0 14px;border-bottom:1px solid var(--line);
+  background:rgba(255,255,255,.88); backdrop-filter:blur(14px)}
+.icon-btn{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;
+  background:var(--panel);border:1px solid var(--line);color:var(--txt);cursor:pointer;transition:.18s}
+.icon-btn:hover{background:var(--acc);color:#fff;border-color:var(--acc);transform:translateY(-1px)}
+.icon-btn svg{width:19px;height:19px}
+.brand{display:flex;align-items:center;gap:10px;margin:0 auto}
+.brand-ic{width:34px;height:34px;border-radius:11px;background:var(--acc);display:grid;place-items:center;color:#fff}
+.brand-ic svg{width:19px;height:19px}
+.brand-name{font-weight:800;font-size:17px;letter-spacing:-.02em}
+.brand-badge{font-family:var(--f-mono);font-size:9.5px;font-weight:700;letter-spacing:.1em;color:#fff;
+  background:var(--acc);padding:2.5px 9px;border-radius:999px;text-transform:uppercase}
+
+/* ---------- LAYOUT ---------- */
+#app{position:relative;z-index:10;display:flex;height:calc(100dvh - 60px)}
+#main{position:relative;flex:1;min-width:0;display:flex;flex-direction:column}
+
+/* ---------- SIDEBAR (chats) ---------- */
+#side{width:266px;flex-shrink:0;border-right:1px solid var(--line);background:var(--bg2);
+  display:flex;flex-direction:column;transition:width .28s ease;overflow:hidden}
+body.side-closed #side{width:0;border-right:none}
+.side-head{display:flex;align-items:center;justify-content:space-between;padding:14px 14px 6px}
+.side-title{font-size:14px;font-weight:800;letter-spacing:-.01em}
+.side-head .icon-btn{width:32px;height:32px}
+.new-chat{display:flex;align-items:center;justify-content:center;gap:8px;margin:8px 14px 4px;
+  padding:10px;border-radius:13px;border:none;background:var(--acc);color:#fff;
+  font-size:13px;font-weight:700;cursor:pointer;transition:.16s;font-family:var(--f-sans)}
+.new-chat:hover{box-shadow:0 6px 18px rgba(0,0,0,.25);transform:translateY(-1px)}
+#chatList{flex:1;overflow-y:auto;padding:8px 10px 14px;scrollbar-width:thin}
+#chatList::-webkit-scrollbar{width:6px}
+#chatList::-webkit-scrollbar-thumb{background:var(--line2);border-radius:99px}
+.chat-item{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:11px;cursor:pointer;
+  font-size:13px;color:var(--mut);transition:.14s;margin-bottom:3px;border:1px solid transparent}
+.chat-item:hover{background:var(--panel);color:var(--txt);border-color:var(--line)}
+.chat-item.active{background:var(--acc);color:#fff;border-color:var(--acc)}
+.ci-title{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.ci-del{display:none;width:22px;height:22px;border-radius:7px;border:none;background:transparent;
+  color:inherit;cursor:pointer;font-size:15px;line-height:1;flex-shrink:0;padding:0}
+.chat-item:hover .ci-del{display:block}
+.ci-del:hover{background:var(--bad);color:#fff}
+.chat-item.active:hover .ci-del{color:#fff}
+.chat-item.active .ci-del{display:none}
+.side-foot{border-top:1px solid var(--line);padding:12px 16px}
+.sf-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;
+  font-size:11.5px;color:var(--mut);font-family:var(--f-mono)}
+.sf-row b{color:var(--txt);font-weight:600}
+@media(max-width:760px){
+  #side{position:fixed;z-index:75;top:60px;bottom:0;left:0;width:280px;max-width:86vw;
+    transform:translateX(-105%);transition:transform .3s ease;box-shadow:30px 0 60px rgba(0,0,0,.15);border-right:1px solid var(--line)}
+  body:not(.side-closed) #side{transform:translateX(0)}
+  body.side-closed #side{width:280px;transform:translateX(-105%);border-right:1px solid var(--line)}
+}
+
+/* ---------- CHAT ---------- */
+#chat{flex:1;overflow-y:auto;overflow-x:hidden;padding:22px 16px 10px;
+  scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+#chat::-webkit-scrollbar{width:7px}
+#chat::-webkit-scrollbar-thumb{background:var(--line2);border-radius:99px}
+#chat::-webkit-scrollbar-track{background:transparent}
+.chat-inner{max-width:830px;margin:0 auto;display:flex;flex-direction:column;gap:18px;width:100%}
+
+.msg-row{display:flex;width:100%;animation:msgIn .38s cubic-bezier(.22,1,.36,1)}
+.msg-row.ai{justify-content:flex-start}
+.msg-row.user{flex-direction:row-reverse;justify-content:flex-start}
+@keyframes msgIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+.avatar{width:36px;height:36px;border-radius:11px;flex-shrink:0;display:grid;place-items:center}
+.avatar svg{width:19px;height:19px}
+.ai-av{background:var(--acc);color:#fff;border:1px solid var(--acc)}
+.user-av{background:#fff;color:var(--acc);border:1.5px solid var(--acc)}
+.msg-row.ai .avatar{margin-right:12px}
+.msg-row.user .avatar{margin-left:12px}
+
+.bubble{max-width:min(660px,calc(100% - 56px));padding:13px 16px;border-radius:18px;
+  font-size:14.5px;line-height:1.62;word-wrap:break-word;overflow-wrap:anywhere;white-space:normal;user-select:text}
+.msg-row.ai .bubble{background:var(--panel);border:1px solid var(--line);border-top-left-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.msg-row.user .bubble{background:var(--acc);color:#fff;border:1px solid var(--acc);border-top-right-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.bubble b{font-weight:700}
+.bubble .h-line{display:block;font-weight:800;color:var(--txt);margin:6px 0 4px}
+.msg-row.user .bubble .h-line{color:#fff}
+.inline-code{font-family:var(--f-mono);font-size:12.5px;background:var(--panel2);
+  border:1px solid var(--line);padding:1px 6px;border-radius:6px;color:var(--txt)}
+.msg-row.user .inline-code{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.25);color:#fff}
+.code-block{display:block;margin:8px 0;padding:10px 12px;background:var(--bg2);border:1px solid var(--line);
+  border-radius:10px;font-family:var(--f-mono);font-size:12px;line-height:1.55;overflow-x:auto;
+  white-space:pre-wrap;word-break:break-all;color:var(--txt);max-width:100%}
+.md-link{color:var(--txt);font-weight:600;text-decoration:underline;text-underline-offset:2px}
+.msg-row.user .md-link{color:#fff}
+.msg-time{display:flex;align-items:center;gap:5px;font-family:var(--f-mono);font-size:10.5px;
+  color:var(--mut2);margin-top:7px}
+.msg-row.user .msg-time{color:rgba(255,255,255,.55)}
+.msg-time svg{width:11px;height:11px}
+.um-img{display:block;max-width:250px;max-height:250px;border-radius:12px;border:1px solid rgba(255,255,255,.25)}
+
+/* ---------- STATUS PILL ---------- */
+#statusPill{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:40;
+  display:none;align-items:center;gap:10px;padding:8px 16px 8px 9px;border-radius:999px;
+  background:rgba(255,255,255,.96);border:1px solid var(--line2);box-shadow:var(--shadow-lg)}
+#statusPill.show{display:flex;animation:dropIn .34s cubic-bezier(.34,1.56,.64,1)}
+@keyframes dropIn{from{opacity:0;transform:translate(-50%,-14px) scale(.92)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
+.s-icon{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--acc);color:#fff}
+.s-icon svg{width:18px;height:18px}
+.s-text{font-size:13.5px;font-weight:600;white-space:nowrap}
+.s-time{font-family:var(--f-mono);font-size:11.5px;font-weight:600;color:var(--txt);
+  background:var(--panel2);border:1px solid var(--line);padding:3px 9px;border-radius:999px}
+
+/* brain still — white shine sweeps bottom-left → top-right every 2.5s */
+#statusPill[data-phase="think"] .s-icon{position:relative;overflow:hidden}
+#statusPill[data-phase="think"] .s-icon::after{
+  content:"";position:absolute;width:36%;height:170%;left:-45%;bottom:-35%;
+  background:linear-gradient(115deg,transparent 20%,rgba(255,255,255,.95) 50%,transparent 80%);
+  transform:skewX(-6deg);opacity:0;animation:shineSweep 2.5s ease-in-out infinite}
+@keyframes shineSweep{
+  0%{left:-45%;bottom:-35%;opacity:0}
+  12%{opacity:.95}
+  62%{left:120%;bottom:135%;opacity:.95}
+  64%{opacity:0}
+  100%{left:120%;bottom:135%;opacity:0}}
+#statusPill[data-phase="work"] .s-icon svg{transform-origin:82% 16%;animation:swing .9s ease-in-out infinite}
+@keyframes swing{0%,100%{transform:rotate(0)}50%{transform:rotate(-40deg)}}
+#statusPill[data-phase="error"] .s-icon,#statusPill[data-phase="net"] .s-icon{background:var(--bad)}
+#statusPill[data-phase="error"] .s-icon,#statusPill[data-phase="net"] .s-icon{animation:shakeX .5s ease}
+#statusPill[data-phase="error"] .s-text,#statusPill[data-phase="net"] .s-text{color:var(--bad)}
+#statusPill[data-phase="error"] .s-time,#statusPill[data-phase="net"] .s-time{color:var(--bad);border-color:rgba(220,38,38,.3);background:rgba(220,38,38,.06)}
+@keyframes shakeX{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-4px)}40%,80%{transform:translateX(4px)}}
+
+#chatHiddenHint{display:none;position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:35;
+  font-size:12px;color:var(--mut);background:var(--panel);border:1px solid var(--line);
+  padding:7px 16px;border-radius:999px;box-shadow:var(--shadow)}
+body.chat-hidden #chat{display:none}
+body.chat-hidden #chatHiddenHint{display:block}
+
+/* ---------- COMPOSER ---------- */
+#composerWrap{position:relative;z-index:50;padding:6px 16px 10px}
+.composer-inner{max-width:830px;margin:0 auto;position:relative}
+#popup{position:absolute;bottom:calc(100% + 8px);left:0;width:min(430px,100%);
+  max-height:190px;overflow-y:auto;background:var(--panel);border:1px solid var(--line2);
+  border-radius:16px;padding:6px;display:none;box-shadow:var(--shadow-lg);scrollbar-width:thin}
+#popup.show{display:block;animation:popIn .18s ease}
+@keyframes popIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+#popup::-webkit-scrollbar{width:6px}
+#popup::-webkit-scrollbar-thumb{background:var(--line2);border-radius:99px}
+.sp-item{display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:11px;cursor:pointer;transition:.13s}
+.sp-item:hover{background:var(--panel2)}
+.sp-item .cmd-ic{width:32px;height:32px;border-radius:9px;background:var(--panel2);
+  border:1px solid var(--line);display:grid;place-items:center;color:var(--txt);flex-shrink:0}
+.sp-item .cmd-ic svg{width:16px;height:16px}
+.sp-item .com-ic{width:32px;height:32px;border-radius:9px;background:var(--panel2);
+  border:1px solid var(--line);display:grid;place-items:center;font-size:19px;flex-shrink:0}
+.sp-item .cmd-name{font-family:var(--f-mono);font-size:12.5px;font-weight:700;color:var(--txt)}
+.sp-item .cmd-desc{font-size:11px;color:var(--mut);margin-top:1px}
+
+.composer{display:flex;align-items:flex-end;gap:8px;background:var(--panel);border:1px solid var(--line2);
+  border-radius:20px;padding:9px 9px 9px 10px;box-shadow:var(--shadow);transition:border-color .2s, box-shadow .2s}
+.composer:focus-within{border-color:var(--acc);box-shadow:0 0 0 3px rgba(24,24,27,.1),var(--shadow)}
+#input{flex:1;background:transparent;border:none;outline:none;resize:none;color:var(--txt);
+  font-family:var(--f-sans);font-size:14.5px;line-height:1.5;max-height:150px;user-select:text;padding:8px 4px}
+#input::placeholder{color:var(--mut2)}
+.composer-btn{width:40px;height:42px;border-radius:13px;background:var(--panel2);border:1px solid var(--line);
+  color:var(--txt);cursor:pointer;display:grid;place-items:center;flex-shrink:0;transition:.16s}
+.composer-btn:hover{background:var(--acc);color:#fff;border-color:var(--acc)}
+.composer-btn svg{width:18px;height:18px}
+.composer-btn.listening{background:var(--bad);border-color:var(--bad);color:#fff;animation:pulseMic 1.1s ease-in-out infinite}
+@keyframes pulseMic{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.45)}50%{box-shadow:0 0 0 9px rgba(220,38,38,0)}}
+.send-btn{width:42px;height:42px;border-radius:14px;background:var(--acc);border:none;cursor:pointer;
+  display:grid;place-items:center;color:#fff;flex-shrink:0;transition:.18s;box-shadow:0 4px 12px rgba(0,0,0,.22)}
+.send-btn:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 8px 20px rgba(0,0,0,.3)}
+.send-btn:active{transform:scale(.95)}
+.send-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+.send-btn svg{width:19px;height:19px}
+.hint{text-align:center;font-size:10.5px;color:var(--mut2);margin-top:7px;font-family:var(--f-mono);letter-spacing:.02em}
+
+/* ---------- SETTINGS PANEL (right) ---------- */
+#settingsPanel{position:absolute;right:0;top:0;bottom:0;width:330px;max-width:88vw;z-index:80;
+  background:var(--panel);border-left:1px solid var(--line2);transform:translateX(103%);
+  transition:transform .32s cubic-bezier(.22,1,.36,1);display:flex;flex-direction:column;
+  box-shadow:-30px 0 60px rgba(0,0,0,.12)}
+#settingsPanel.open{transform:translateX(0)}
+.sp-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;
+  border-bottom:1px solid var(--line)}
+.sp-head h2{font-size:16px;font-weight:800}
+.sp-body{flex:1;overflow-y:auto;padding:16px 14px 20px;scrollbar-width:thin}
+.sp-body::-webkit-scrollbar{width:6px}
+.sp-body::-webkit-scrollbar-thumb{background:var(--line2);border-radius:99px}
+.sp-section{margin-bottom:22px}
+.sp-section h3{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--mut);margin:0 6px 10px}
+.engine-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:6px 14px}
+.ec-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;
+  border-bottom:1px solid var(--line);font-size:12.5px;color:var(--mut)}
+.ec-row:last-child{border-bottom:none}
+.ec-row b{color:var(--txt);font-family:var(--f-mono);font-size:11.5px;font-weight:600}
+.on-tag{color:#fff;font-family:var(--f-mono);font-size:10px;font-weight:700;
+  background:var(--acc);padding:2.5px 8px;border-radius:999px;letter-spacing:.06em}
+.tgl{width:38px;height:21px;border-radius:999px;background:var(--panel3);border:1px solid var(--line2);
+  cursor:pointer;position:relative;transition:.2s;flex-shrink:0}
+.tgl span{position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:var(--mut2);
+  transition:.2s cubic-bezier(.34,1.56,.64,1)}
+.tgl.on{background:var(--acc);border-color:var(--acc)}
+.tgl.on span{left:19px;background:#fff}
+.danger-btn{width:100%;padding:11px;border-radius:13px;font-size:12.5px;font-weight:600;
+  cursor:pointer;transition:.18s;border:1px solid var(--line);color:var(--bad);background:var(--panel);font-family:var(--f-sans)}
+.danger-btn:hover{background:rgba(220,38,38,.07);border-color:var(--bad)}
+#overlay{position:absolute;inset:0;z-index:70;background:rgba(0,0,0,.25);backdrop-filter:blur(2px);
+  opacity:0;pointer-events:none;transition:opacity .3s}
+#overlay.show{opacity:1;pointer-events:auto}
+
+/* ---------- CARDS ---------- */
+.coin-card{margin-top:12px;background:var(--panel);border:1px solid var(--line2);
+  border-radius:18px;padding:15px 15px 12px;box-shadow:var(--shadow)}
+.coin-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.coin-id{display:flex;align-items:center;gap:10px}
+.coin-id img{width:38px;height:38px;border-radius:50%;background:var(--panel2);border:1px solid var(--line2)}
+.com-ic{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-size:20px;
+  border:1px solid var(--line2);flex-shrink:0}
+.coin-name{font-weight:800;font-size:14px}
+.coin-sym{font-family:var(--f-mono);font-size:10.5px;color:var(--mut);letter-spacing:.08em;margin-top:1px}
+.coin-right{text-align:right}
+.coin-price{font-family:var(--f-mono);font-size:21px;font-weight:700;letter-spacing:-.02em}
+.coin-delta{display:inline-flex;align-items:center;gap:5px;font-family:var(--f-mono);font-size:11.5px;
+  font-weight:700;padding:3px 9px;border-radius:8px;margin-top:5px}
+.coin-delta span{font-weight:400;opacity:.75}
+.coin-delta.up{color:var(--good);background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.3)}
+.coin-delta.down{color:var(--bad);background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.3)}
+.coin-tfs{display:flex;gap:5px;margin:13px 0 9px}
+.coin-tf{font-family:var(--f-mono);font-size:10.5px;font-weight:700;letter-spacing:.06em;
+  padding:4px 12px;border-radius:999px;border:1px solid var(--line);background:transparent;
+  color:var(--mut);cursor:pointer;transition:.15s}
+.coin-tf:hover{color:var(--txt)}
+.coin-tf.on{color:#fff;background:var(--acc);border-color:var(--acc)}
+.coin-chart{position:relative;height:150px;border-radius:10px;overflow:hidden;background:var(--bg2);
+  border:1px solid var(--line)}
+.coin-chart svg{width:100%;height:100%;display:block}
+.coin-live{position:absolute;top:9px;right:11px;display:flex;align-items:center;gap:6px;
+  font-family:var(--f-mono);font-size:9.5px;font-weight:700;letter-spacing:.14em;color:var(--good)}
+.coin-live .dot{width:6px;height:6px;border-radius:50%;background:var(--good);
+  box-shadow:0 0 8px rgba(22,163,74,.7);animation:pulseDot 1.6s ease-in-out infinite}
+@keyframes pulseDot{0%,100%{opacity:1}50%{opacity:.25}}
+.coin-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding-top:11px;margin-top:11px;
+  border-top:1px solid var(--line)}
+.coin-stats div{display:flex;flex-direction:column;gap:3px}
+.coin-stats span{font-size:9.5px;color:var(--mut2);text-transform:uppercase;letter-spacing:.08em;font-family:var(--f-mono)}
+.coin-stats b{font-family:var(--f-mono);font-size:11.5px;font-weight:600;color:var(--txt)}
+
+.img-card{margin-top:12px;border-radius:18px;overflow:hidden;border:1px solid var(--line2);
+  background:var(--panel);max-width:100%;box-shadow:var(--shadow)}
+.img-main{display:block;width:100%;height:auto;max-height:430px;object-fit:cover;background:var(--bg2)}
+.img-actions{display:flex;gap:8px;padding:10px;flex-wrap:wrap}
+.btn-a{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:11px;
+  font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--line2);background:var(--panel);
+  color:var(--txt);transition:.16s;font-family:var(--f-sans)}
+.btn-a:hover{border-color:var(--acc);background:var(--panel2);transform:translateY(-1px)}
+.btn-a svg{width:14px;height:14px}
+.btn-a.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn-a.pri:hover{box-shadow:0 6px 18px rgba(0,0,0,.25)}
+
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.chip{font-family:var(--f-mono);font-size:11px;padding:6px 13px;border-radius:999px;
+  border:1px solid var(--line2);background:var(--panel);color:var(--txt);cursor:pointer;transition:.16s}
+.chip:hover{border-color:var(--acc);background:var(--acc);color:#fff;transform:translateY(-1px)}
+
+/* ---------- TOAST ---------- */
+#toast{position:fixed;left:50%;bottom:108px;transform:translateX(-50%) translateY(20px);z-index:200;
+  background:var(--acc);color:#fff;font-size:12.5px;padding:10px 18px;border-radius:999px;
+  opacity:0;pointer-events:none;transition:.25s;box-shadow:var(--shadow-lg);max-width:90vw;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<div id="bgfx"></div>
+
+<header class="topbar">
+  <button class="icon-btn" id="menuBtn" title="Chats"></button>
+  <div class="brand">
+    <div class="brand-ic" id="brandIc"></div>
+    <span class="brand-name">Thing</span>
+    <span class="brand-badge">v1</span>
+  </div>
+  <button class="icon-btn" id="settingsBtn" title="Settings"></button>
+</header>
+
+<div id="app">
+  <aside id="side">
+    <div class="side-head">
+      <span class="side-title">Chats</span>
+      <button class="icon-btn" id="hideChats" title="Hide / show messages"></button>
+    </div>
+    <button class="new-chat" id="newChatBtn">＋ New chat</button>
+    <div id="chatList"></div>
+    <div class="side-foot">
+      <div class="sf-row"><span>model</span><b>thing v1</b></div>
+      <div class="sf-row"><span>memory</span><b id="memCount2">0 facts</b></div>
+    </div>
+  </aside>
+
+  <aside id="settingsPanel">
+    <div class="sp-head">
+      <h2>Settings</h2>
+      <button class="icon-btn" id="closeSettings"></button>
+    </div>
+    <div class="sp-body">
+      <div class="sp-section">
+        <h3>Engine</h3>
+        <div class="engine-card">
+          <div class="ec-row"><span>Model</span><b>thing v1</b></div>
+          <div class="ec-row"><span>Web search</span><button class="tgl on" id="webTgl" title="Toggle web search"><span></span></button></div>
+          <div class="ec-row"><span>Auto retry on overload</span><b class="on-tag">ON</b></div>
+        </div>
+      </div>
+      <div class="sp-section">
+        <h3>Memory</h3>
+        <div class="engine-card">
+          <div class="ec-row"><span>Saved facts about you</span><b id="memCount">0</b></div>
+        </div>
+        <button class="danger-btn" id="clearMem" style="margin-top:9px">Forget everything (clear memory)</button>
+      </div>
+      <div class="sp-section">
+        <h3>Data</h3>
+        <button class="danger-btn" id="clearChat">Delete all chats</button>
+      </div>
+    </div>
+  </aside>
+  <div id="overlay"></div>
+
+  <main id="main">
+    <div id="statusPill">
+      <div class="s-icon"></div>
+      <div class="s-text"></div>
+      <div class="s-time"></div>
+    </div>
+    <div id="chatHiddenHint">👁 Chats are hidden — unhide to see them</div>
+    <div id="chat"><div class="chat-inner" id="chatInner"></div></div>
+
+    <div id="composerWrap">
+      <div class="composer-inner">
+        <div id="popup"></div>
+        <div class="composer">
+          <button class="composer-btn" id="micBtn" title="Speak to type"></button>
+          <textarea id="input" rows="1" placeholder="Message Thing…  (type / for commands)"></textarea>
+          <button class="composer-btn" id="attachBtn" title="Upload an image"></button>
+          <button class="send-btn" id="sendBtn" title="Send"></button>
+        </div>
+        <div class="hint" id="hintBar">web search: on · type / for all commands · mic for voice</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ============================================================
+   THING v1 — smart chat · multi-chat · voice · vision · white/black
+   ============================================================ */
+(function(){
+"use strict";
+
+/* ---------------- ICONS ---------------- */
+function ic(paths){
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+paths+'</svg>';
+}
+const IC = {
+  brain: ic('<path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/><path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/><path d="M3.477 10.896a4 4 0 0 1 .585-.396"/><path d="M19.938 10.5a4 4 0 0 1 .585.396"/><path d="M6 18a4 4 0 0 1-1.967-.516"/><path d="M19.967 17.484A4 4 0 0 1 18 18"/>'),
+  hammer: ic('<path d="m15 12-8.373 8.373a1 1 0 1 1-3-3L12 9"/><path d="m18 15 4-4"/><path d="m21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172V7l-2.26-2.26a6 6 0 0 0-4.202-1.756L9 2.96l.92.82A6.18 6.18 0 0 1 12 8.4V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5"/>'),
+  err: ic('<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>'),
+  eye: ic('<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>'),
+  eyeOff: ic('<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><path d="M2 2l20 20"/>'),
+  gear: ic('<line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="2" x2="6" y1="14" y2="14"/><line x1="10" x2="14" y1="8" y2="8"/><line x1="18" x2="22" y1="16" y2="16"/>'),
+  menu: ic('<line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/>'),
+  send: ic('<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>'),
+  x: ic('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>'),
+  dl: ic('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>'),
+  upscale: ic('<path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>'),
+  refresh: ic('<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>'),
+  clock: ic('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'),
+  bolt: ic('<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>'),
+  camera: ic('<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>'),
+  cloud: ic('<path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/>'),
+  globe: ic('<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>'),
+  coins: ic('<circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/>'),
+  chart: ic('<path d="M3 3v18h18"/><path d="m7 14 4-4 4 4 5-6"/>'),
+  sat: ic('<path d="M13 7 9 3 5 7l4 4"/><path d="m17 11 4 4-4 4-4-4"/><path d="m8 12 4 4 6-6-4-4Z"/><path d="m16 8 3-3"/><path d="M9 21a6 6 0 0 0-6-6"/>'),
+  smile: ic('<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/>'),
+  book: ic('<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>'),
+  scissors: ic('<circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/>'),
+  qr: ic('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3z"/><path d="M21 14v.01"/><path d="M14 21v.01"/><path d="M17 17h4v4h-4z"/>'),
+  barcode: ic('<path d="M3 5v14"/><path d="M7 5v14"/><path d="M11 5v14"/><path d="M15 5v14"/><path d="M17.5 5v14"/><path d="M21 5v14"/>'),
+  qrread: ic('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M11 14h6"/><path d="M11 18h6"/><path d="M11 21h6"/><path d="M14 14v4"/><path d="M20 14v7"/>'),
+  calc: ic('<rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" x2="16" y1="6.5" y2="6.5"/><line x1="8" x2="8.01" y1="11" y2="11"/><line x1="12" x2="12.01" y1="11" y2="11"/><line x1="16" x2="16.01" y1="11" y2="11"/><line x1="8" x2="8.01" y1="15" y2="15"/><line x1="12" x2="12.01" y1="15" y2="15"/><line x1="16" x2="16.01" y1="15" y2="15"/><line x1="8" x2="8.01" y1="19" y2="19"/><line x1="12" x2="12.01" y1="19" y2="19"/><line x1="16" x2="16.01" y1="19" y2="19"/>'),
+  currency: ic('<circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/>'),
+  translate: ic('<path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/>'),
+  news: ic('<path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/>'),
+  key: ic('<path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/>'),
+  dictionary: ic('<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M9 7h6"/><path d="M9 11h4"/>'),
+  user: ic('<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>'),
+  mic: ic('<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/>'),
+  paperclip: ic('<path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>')
+};
+
+/* ---------------- DOM ---------------- */
+const $ = s => document.querySelector(s);
+const chat = $('#chat'), chatInner = $('#chatInner'), input = $('#input'),
+      sendBtn = $('#sendBtn'), popup = $('#popup'), statusPill = $('#statusPill'),
+      sIcon = statusPill.querySelector('.s-icon'), sText = statusPill.querySelector('.s-text'),
+      sTime = statusPill.querySelector('.s-time'), toast = $('#toast'),
+      settingsPanel = $('#settingsPanel'), overlay = $('#overlay'),
+      chatList = $('#chatList'), micBtn = $('#micBtn'), attachBtn = $('#attachBtn'),
+      hintBar = $('#hintBar');
+
+$('#brandIc').innerHTML = IC.brain;
+$('#hideChats').innerHTML = IC.eyeOff;
+$('#settingsBtn').innerHTML = IC.gear;
+$('#closeSettings').innerHTML = IC.x;
+$('#sendBtn').innerHTML = IC.send;
+$('#menuBtn').innerHTML = IC.menu;
+micBtn.innerHTML = IC.mic;
+attachBtn.innerHTML = IC.paperclip;
+
+/* ---------------- STATE ---------------- */
+let busy = false, t0 = 0, tInt = null, thinkTimer = null, hiddenChats = false;
+let webOn = localStorage.getItem('thing_web') !== '0';
+let MEMORY = [];
+function loadMemory(){ try{ MEMORY = JSON.parse(localStorage.getItem('thing_memory')||'[]')||[]; }catch(e){ MEMORY=[]; } }
+function saveMemory(){ try{ localStorage.setItem('thing_memory', JSON.stringify(MEMORY)); }catch(e){} }
+loadMemory();
+
+/* chats */
+let chats = [];
+let cur = null;
+function loadChats(){
+  try{ chats = JSON.parse(localStorage.getItem('thing_chats')||'[]')||[]; }catch(e){ chats=[]; }
+  chats.forEach(c => { c.msgs = c.msgs || []; c.hist = c.hist || []; c.lastDeep = c.lastDeep || null; });
+  const curId = localStorage.getItem('thing_cur');
+  cur = chats.find(c => c.id === curId) || chats[0] || null;
+}
+function saveChats(){
+  try{
+    const slim = chats.map(c => ({ id:c.id, title:c.title, t:c.t, titled:c.titled,
+      lastDeep:c.lastDeep, hist:(c.hist||[]).slice(-20), msgs:c.msgs.slice(-60) }));
+    localStorage.setItem('thing_chats', JSON.stringify(slim));
+    if(cur) localStorage.setItem('thing_cur', cur.id);
+  }catch(e){ toastMsg('Storage full — very old chats may not persist'); }
+}
+function getDeep(){ return cur ? cur.lastDeep : null; }
+function setDeep(v){ if(cur){ cur.lastDeep = v; saveChats(); } }
+
+/* ---------------- SYSTEM ---------------- */
+const SYSTEM = "You are Thing, a smart assistant running on the Thing v1 engine. Be concise, warm and helpful.\n" +
+  "RULES:\n" +
+  "- Use **bold** for emphasis, short bullet lists and clear structure. Keep answers compact.\n" +
+  "- NEVER mention model names, providers, tokens, keys or internal app design. Talk like a natural helper.\n" +
+  "- If [CURRENT LIVE SEARCH DATA] is provided, treat it as your primary source and keep answers fresh.\n" +
+  "- Use [MEMORY ABOUT THE USER] to personalise your answers when relevant.\n" +
+  "- If the user asks for real-time facts (weather, prices, news, location) and no live data covers it, say clearly you cannot get live info right now instead of guessing.\n" +
+  "- If a request is unclear, ask one short question.\n" +
+  "- Never say you searched the web unless the user asks about your sources.";
+
+function buildSystem(){
+  let s = SYSTEM;
+  if(MEMORY.length){
+    s += '\n\n[MEMORY ABOUT THE USER — use these to give better, more personal answers]\n' + MEMORY.map(m=>'- '+m).join('\n');
+  }
+  if(!webOn){
+    s += '\n\n[NOTE: live web search is currently switched OFF by the user. If a question needs fresh live data you cannot access, say so honestly instead of guessing.]';
+  }
+  return s;
+}
+
+/* ---------------- COMMANDS (always enabled) ---------------- */
+const COMMANDS = [
+  { name:'help',       icon:IC.bolt,      desc:'Shows how every command works' },
+  { name:'image',      icon:IC.camera,    desc:'Make an image from a description' },
+  { name:'weather',    icon:IC.cloud,     desc:'Live weather anywhere, e.g. /weather London' },
+  { name:'ip',         icon:IC.globe,     desc:'Shows your IP, network and location info' },
+  { name:'crypto',     icon:IC.coins,     desc:'Live coin price, 24h stats and chart' },
+  { name:'commodity',  icon:IC.chart,     desc:'Live gold, silver, oil & gas prices with chart' },
+  { name:'time',       icon:IC.clock,     desc:'Current time in any place or timezone' },
+  { name:'iss',        icon:IC.sat,       desc:'Live location of the ISS right now' },
+  { name:'joke',       icon:IC.smile,     desc:'Tells you a random joke' },
+  { name:'wiki',       icon:IC.book,      desc:'Quick summary of any topic (no links)' },
+  { name:'summarize',  icon:IC.scissors,  desc:'Summarize any pasted text' },
+  { name:'qr',         icon:IC.qr,        desc:'Generate a QR code, e.g. /qr hello' },
+  { name:'qrread',     icon:IC.qrread,    desc:'Read a QR code from a photo' },
+  { name:'barcode',    icon:IC.barcode,   desc:'Generate a barcode, e.g. /barcode 12345' },
+  { name:'barcoderead',icon:IC.barcode,   desc:'Read a barcode from a photo' },
+  { name:'calc',       icon:IC.calc,      desc:'Calculator, e.g. /calc 125*4+10' },
+  { name:'currency',   icon:IC.currency,  desc:'Convert money, e.g. /currency 100 usd to eur' },
+  { name:'translate',  icon:IC.translate, desc:'Translate text, e.g. /translate hello to french' },
+  { name:'news',       icon:IC.news,      desc:'Top tech & hacker news stories' },
+  { name:'password',   icon:IC.key,       desc:'Generate a strong password, e.g. /password 20' },
+  { name:'dictionary', icon:IC.dictionary,desc:'Word meaning, e.g. /dictionary serendipity' }
+];
+
+/* ---------------- UTILS ---------------- */
+function escapeHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function toastMsg(m){
+  toast.textContent = m;
+  toast.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(()=>toast.classList.remove('show'), 2400);
+}
+function scrollBottom(){
+  requestAnimationFrame(()=>{ chat.scrollTop = chat.scrollHeight; });
+}
+function fmtPrice(n){
+  if(n == null) return '—';
+  return n >= 1000 ? n.toLocaleString('en-US',{maximumFractionDigits:2})
+       : n >= 1 ? n.toFixed(2) : n.toFixed(4);
+}
+function fmtVol(n){
+  if(n == null) return '—';
+  if(n >= 1e9) return '$'+(n/1e9).toFixed(2)+'B';
+  if(n >= 1e6) return '$'+(n/1e6).toFixed(1)+'M';
+  return '$'+Math.round(n).toLocaleString('en-US');
+}
+async function fjson(url, opts){
+  let r;
+  try { r = await fetch(url, opts||{}); }
+  catch(e){ throw { type:'network' }; }
+  if(!r.ok) throw { type:'api', status:r.status };
+  return r.json();
+}
+function startTimer(){
+  t0 = performance.now();
+  sTime.textContent = '0.0 s';
+  tInt = setInterval(()=>{
+    sTime.textContent = ((performance.now()-t0)/1000).toFixed(1) + ' s';
+  }, 90);
+}
+function stopTimer(){
+  clearInterval(tInt);
+  return (performance.now()-t0)/1000;
+}
+function timeStr(t){ return t.toFixed(1)+' s'; }
+
+/* ---------------- STATUS ENGINE ---------------- */
+function setStatus(phase, text){
+  clearTimeout(thinkTimer);
+  if(phase === 'idle'){
+    statusPill.classList.remove('show');
+    statusPill.dataset.phase = '';
+    return;
+  }
+  const map = {
+    think:{ t:'Thinking…', ic:IC.brain },
+    work:{ t:'Working…', ic:IC.hammer },
+    error:{ t:text||'Error found', ic:IC.err },
+    net:{ t:'Network connection error', ic:IC.err }
+  };
+  const m = map[phase] || map.error;
+  statusPill.dataset.phase = phase;
+  sIcon.innerHTML = m.ic;
+  sText.textContent = m.t;
+  statusPill.classList.add('show');
+}
+
+/* ---------------- MESSAGE RENDERING ---------------- */
+function renderAI(t){
+  const parts = String(t).split(/```/);
+  let out = '';
+  for(let i=0;i<parts.length;i++){
+    if(i%2===1){
+      out += '<pre class="code-block">'+escapeHtml(parts[i].replace(/^\n/,''))+'</pre>';
+    } else {
+      out += escapeHtml(parts[i])
+        .replace(/^#{1,4}\s+(.+)$/gm,'<span class="h-line">$1</span>')
+        .replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>')
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener" class="md-link">$1</a>')
+        .replace(/`([^`]+)`/g,'<code class="inline-code">$1</code>')
+        .replace(/\n/g,'<br>');
+    }
+  }
+  return out;
+}
+function rowHTML(side, inner){
+  return '<div class="msg-row '+(side==='user'?'user':'ai')+'">' +
+    (side==='user' ? '<div class="avatar user-av">'+IC.user+'</div>' : '<div class="avatar ai-av">'+IC.brain+'</div>') +
+    '<div class="bubble">'+inner+'</div></div>';
+}
+function addMsg(side, inner){
+  const row = document.createElement('div');
+  row.innerHTML = rowHTML(side, inner);
+  chatInner.appendChild(row);
+  if(cur){
+    cur.msgs.push({ r: side, h: inner });
+    saveChats();
+    renderChatList();
+  }
+  scrollBottom();
+  return row;
+}
+function addUser(text, inner){
+  addMsg('user', inner || escapeHtml(text).replace(/\n/g,'<br>'));
+  if(cur){
+    if(!cur.titled && text){ cur.title = text.slice(0,40); cur.titled = true; }
+    cur.hist.push({role:'user', content:text});
+    saveChats();
+  }
+}
+function addAI(text, extraNode, seconds){
+  const tmp = document.createElement('div');
+  tmp.innerHTML = renderAI(text);
+  if(extraNode) tmp.appendChild(extraNode);
+  if(seconds != null){
+    const t = document.createElement('div');
+    t.className = 'msg-time';
+    t.innerHTML = IC.clock + timeStr(seconds);
+    tmp.appendChild(t);
+  }
+  addMsg('ai', tmp.innerHTML);
+  if(cur) cur.hist.push({role:'assistant', content:String(text).slice(0,2000)});
+}
+function recentHistory(){
+  return (cur && cur.hist ? cur.hist.slice(-8) : []).map(m => ({ role:m.role, content:String(m.content).slice(0,1500) }));
+}
+function pushHistory(role, content){
+  if(!cur) return;
+  cur.hist.push({role:role, content:content});
+  if(cur.hist.length > 30) cur.hist.splice(0, cur.hist.length-30);
+}
+
+/* ---------------- CHATS MANAGEMENT ---------------- */
+function renderChatList(){
+  chatList.innerHTML = chats.map(c =>
+    '<div class="chat-item'+(cur && c.id===cur.id?' active':'')+'" data-id="'+c.id+'">' +
+      '<span class="ci-title">'+escapeHtml(c.title || 'New chat')+'</span>' +
+      '<button class="ci-del" data-id="'+c.id+'" title="Delete chat">×</button>' +
+    '</div>'
+  ).join('');
+  updateMemCount();
+}
+function renderChat(){
+  chatInner.innerHTML = (cur ? cur.msgs : []).map(m => rowHTML(m.r, m.h)).join('');
+  scrollBottom();
+}
+function newChat(){
+  const c = { id:'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+    title:'New chat', t:Date.now(), titled:false, lastDeep:null, hist:[], msgs:[] };
+  chats.unshift(c);
+  cur = c;
+  c.msgs.push({ r:'ai', h: welcomeInner() });
+  renderChatList();
+  renderChat();
+  saveChats();
+  return c;
+}
+function switchChat(id){
+  if(busy){ toastMsg('Thing is still responding…'); return; }
+  const c = chats.find(x => x.id === id);
+  if(!c) return;
+  cur = c;
+  renderChatList();
+  renderChat();
+  saveChats();
+  if(window.innerWidth <= 760) toggleSide(false);
+}
+function deleteChat(id){
+  if(busy && cur && cur.id === id){ toastMsg('Thing is still responding…'); return; }
+  chats = chats.filter(c => c.id !== id);
+  if(cur && cur.id === id){
+    cur = chats[0] || null;
+  }
+  if(!cur) newChat();
+  else { renderChatList(); renderChat(); saveChats(); }
+}
+function clearAllChats(){
+  chats = [];
+  newChat();
+}
+function welcomeInner(){
+  return renderAI('👋 Hey! I\'m **Thing**, running on the **Thing v1** engine. Ask me anything — I automatically pull in fresh live web data behind the scenes, and I remember what you tell me about yourself.\n\nTry a command:') +
+    '<div class="chips">' +
+      '<span class="chip" data-txt="/commodity gold">/commodity</span>' +
+      '<span class="chip" data-txt="/image a neon dragon over a cyberpunk city">/image</span>' +
+      '<span class="chip" data-txt="/weather London">/weather</span>' +
+      '<span class="chip" data-txt="/crypto bitcoin price">/crypto</span>' +
+    '</div>';
+}
+
+/* ---------------- MEMORY ---------------- */
+async function extractMemory(userText, reply){
+  try{
+    const content = await groqChat([
+      { role:'system', content:'You extract personal facts about the USER from a conversation (their name, projects, interests, preferences, occupation, location, goals, favourites). Reply with ONLY a valid JSON array of short fact strings like ["User name is Alex", "User is building a food app"]. Reply [] if nothing new. Facts must be useful context for future chats.' },
+      { role:'user', content:'USER SAID: '+String(userText).slice(0,1200)+'\nASSISTANT SAID: '+String(reply).slice(0,1200) }
+    ], 150);
+    const m = content.match(/\[[\s\S]*\]/);
+    if(!m) return;
+    const arr = JSON.parse(m[0]);
+    let changed = false;
+    arr.forEach(f => {
+      if(typeof f === 'string' && f.length > 3 && f.length < 160){
+        if(!MEMORY.some(x => x.toLowerCase() === f.toLowerCase())){
+          MEMORY.push(f);
+          if(MEMORY.length > 40) MEMORY.splice(0, MEMORY.length-40);
+          changed = true;
+        }
+      }
+    });
+    if(changed){ saveMemory(); updateMemCount(); }
+  }catch(e){}
+}
+function updateMemCount(){
+  const a = $('#memCount'), b = $('#memCount2');
+  if(a) a.textContent = MEMORY.length;
+  if(b) b.textContent = MEMORY.length + ' facts';
+}
+
+/* ---------------- THING v1 ENGINE (auto failover) ---------------- */
+const ENGINES = [
+  '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',
+  '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'
+];
+const MODEL = 'llama-3.1-8b-instant';
+const VISION_MODEL = 'llama-3.2-11b-vision-preview';
+
+async function groqChat(messages, maxTokens){
+  maxTokens = maxTokens || 1100;
+  let lastErr = null;
+  for(let i=0;i<ENGINES.length;i++){
+    const key = ENGINES[i];
+    let res;
+    try{
+      res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+key },
+        body: JSON.stringify({ model:MODEL, messages:messages, temperature:0.6, max_tokens:maxTokens })
+      });
+    }catch(e){
+      throw { type:'network' };
+    }
+    if(res.ok){
+      const data = await res.json();
+      return data.choices[0].message.content;
+    }
+    if([429,401,403,500,503].indexOf(res.status) !== -1){
+      lastErr = { type:'api', status:res.status };
+      continue;
+    }
+    throw { type:'api', status:res.status };
+  }
+  throw lastErr || { type:'api', status:0 };
+}
+
+/* vision (image → description, built into the engine, free) */
+async function groqVision(dataUrl){
+  let lastErr = null;
+  for(let i=0;i<ENGINES.length;i++){
+    const key = ENGINES[i];
+    let res;
+    try{
+      res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+key },
+        body: JSON.stringify({
+          model: VISION_MODEL,
+          messages:[{ role:'user', content:[
+            { type:'text', text:'Describe this image in rich detail: what is in it, the main subject (person, animal, object), their look and age, clothing, colors, mood, background, and any visible text. Start with one short summary line, then list details. Keep it under 180 words.' },
+            { type:'image_url', image_url:{ url:dataUrl } }
+          ]}],
+          temperature:0.6, max_tokens:700
+        })
+      });
+    }catch(e){ throw { type:'network' }; }
+    if(res.ok){
+      const j = await res.json();
+      return j.choices[0].message.content;
+    }
+    if([429,401,403,500,503].indexOf(res.status) !== -1){
+      lastErr = { type:'api', status:res.status };
+      continue;
+    }
+    throw { type:'api', status:res.status };
+  }
+  throw lastErr || { type:'api', status:0 };
+}
+
+/* ---------------- AUTO WEB SEARCH (hidden, top 10 results) ---------------- */
+let __cbId = 0;
+function ddgInstant(q){
+  return new Promise(res => {
+    const cb = '__ddg' + (++__cbId);
+    const s = document.createElement('script');
+    let done = false;
+    const cleanup = () => { try{ delete window[cb]; }catch(e){} if(s.parentNode) s.parentNode.removeChild(s); };
+    window[cb] = data => {
+      done = true; cleanup();
+      try{
+        let out = '';
+        if(data.AbstractText) out += 'Search: ' + data.AbstractText;
+        else if(data.Answer) out += 'Search answer: ' + data.Answer;
+        else if(data.Heading) out += 'Search: ' + data.Heading + ' — ' + (data.Abstract || '');
+        if(data.RelatedTopics && data.RelatedTopics.length){
+          out += '\nRelated: ' + data.RelatedTopics.slice(0,5).map(t => t.Text||t.Name||'').filter(Boolean).join(' | ');
+        }
+        res(out.slice(0,1800));
+      }catch(e){ res(''); }
+    };
+    s.onerror = () => { if(!done){ cleanup(); res(''); } };
+    s.src = 'https://api.duckduckgo.com/?q=' + encodeURIComponent(q) + '&format=json&no_html=1&skip_disambig=1&callback=' + cb;
+    document.head.appendChild(s);
+    setTimeout(()=>{ if(!done){ cleanup(); res(''); } }, 6000);
+  });
+}
+async function ddgHtml(q){
+  try{
+    const r = await fetch('https://html.duckduckgo.com/html/?q=' + encodeURIComponent(q), { headers:{ 'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } });
+    if(!r.ok) return { text:'', topUrl:'' };
+    const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+    const items = [];
+    doc.querySelectorAll('.result').forEach((el,i) => {
+      if(i >= 10) return;
+      const a = el.querySelector('.result__a');
+      const sn = el.querySelector('.result__snippet');
+      let url = a ? a.getAttribute('href') : '';
+      try{
+        if(url){
+          const u = new URL(url, 'https://duckduckgo.com');
+          url = u.searchParams.get('uddg') ? decodeURIComponent(u.searchParams.get('uddg')) : url;
+        }
+      }catch(e){}
+      items.push({ title: a ? a.textContent.trim() : '', url: url, sn: sn ? sn.textContent.trim() : '' });
+    });
+    const text = items.length
+      ? 'Top web results:\n' + items.map((x,i)=>(i+1)+') '+x.title+(x.sn?' — '+x.sn:'')).join('\n')
+      : '';
+    return { text: text.slice(0,2600), topUrl: (items[0] && items[0].url) || '' };
+  }catch(e){ return { text:'', topUrl:'' }; }
+}
+async function wikiQuick(q){
+  try{
+    const r = await fetch('https://en.wikipedia.org/w/api.php?action=opensearch&search='+encodeURIComponent(q)+'&limit=1&format=json&origin=*');
+    const j = await r.json();
+    const title = j[1] && j[1][0];
+    if(!title) return '';
+    const r2 = await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(title));
+    const s = await r2.json();
+    return 'Wikipedia ('+title+'): ' + ((s.extract||'').slice(0,1100));
+  }catch(e){ return ''; }
+}
+async function webSearch(q){
+  const parts = await Promise.all([ddgInstant(q), wikiQuick(q), ddgHtml(q)]);
+  let text = '';
+  if(parts[0]) text += parts[0] + '\n';
+  if(parts[1]) text += parts[1] + '\n';
+  if(parts[2].text) text += parts[2].text;
+  return { text: text || 'No live results available for this query.', topUrl: parts[2].topUrl || '' };
+}
+
+/* ---------------- DEEP READ ---------------- */
+function htmlToText(html){
+  try{
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    doc.querySelectorAll('script,style,nav,header,footer,noscript,iframe,svg,form').forEach(n=>n.remove());
+    const txt = (doc.body ? doc.body.innerText : '') || '';
+    return txt.replace(/[ \t]+/g,' ').replace(/\n\s*\n+/g,'\n\n').trim();
+  }catch(e){ return ''; }
+}
+async function readPage(url){
+  if(!url) return '';
+  const wm = url.match(/wikipedia\.org\/wiki\/([^#?]+)/);
+  if(wm){
+    try{
+      const title = decodeURIComponent(wm[1]).replace(/_/g,' ');
+      const r = await fetch('https://en.wikipedia.org/w/api.php?action=query&prop=extracts&explaintext=1&format=json&origin=*&titles='+encodeURIComponent(title));
+      const j = await r.json();
+      const pages = j.query.pages;
+      const p = pages[Object.keys(pages)[0]];
+      return ((p && p.extract) || '').slice(0,8000);
+    }catch(e){}
+  }
+  try{
+    const r = await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(url));
+    if(r.ok){ const txt = htmlToText(await r.text()); if(txt) return txt.slice(0,6500); }
+  }catch(e){}
+  try{
+    const r2 = await fetch('https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(url));
+    if(r2.ok){ const txt = htmlToText(await r2.text()); if(txt) return txt.slice(0,6500); }
+  }catch(e){}
+  return '';
+}
+
+/* ---------------- FETCHERS ---------------- */
+const WCODES = {0:'clear sky',1:'mainly clear',2:'partly cloudy',3:'overcast',45:'fog',48:'icy fog',51:'light drizzle',53:'drizzle',55:'heavy drizzle',61:'light rain',63:'rain',65:'heavy rain',71:'light snow',73:'snow',75:'heavy snow',77:'snow grains',80:'light showers',81:'showers',82:'heavy showers',95:'thunderstorm',96:'thunderstorm with hail',99:'thunderstorm with hail'};
+
+async function fetchWeather(arg){
+  const q = (arg||'London').trim();
+  const g = await fjson('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(q)+'&count=1&language=en&format=json');
+  if(!g.results || !g.results.length) throw { type:'api' };
+  const loc = g.results[0];
+  const w = await fjson('https://api.open-meteo.com/v1/forecast?latitude='+loc.latitude+'&longitude='+loc.longitude+'&current_weather=true&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=auto&forecast_days=3');
+  const cw = w.current_weather;
+  const fc = w.daily.temperature_2m_max.map((t,i)=>
+    'Day '+(i+1)+': '+w.daily.temperature_2m_min[i]+'°C to '+t+'°C, '+ (WCODES[w.daily.weathercode[i]]||'unknown')).join('; ');
+  return { place: loc.name + (loc.country ? ', ' + loc.country : ''), now: cw.temperature + '°C, ' + (WCODES[cw.weathercode]||'unknown'), wind: cw.windspeed + ' km/h from ' + cw.winddirection + '°', forecast: fc };
+}
+async function fetchIp(){
+  try{ return await fjson('https://ipapi.co/json/'); }
+  catch(e){ return await fjson('https://ipwho.is/'); }
+}
+async function fetchIss(){
+  const j = await fjson('https://api.open-notify.org/iss-now.json?t=' + Date.now());
+  return { latitude: j.iss_position.latitude, longitude: j.iss_position.longitude, timestamp: j.timestamp, map: 'https://maps.google.com/?q=' + j.iss_position.latitude + ',' + j.iss_position.longitude };
+}
+async function fetchJoke(){
+  return await fjson('https://official-joke-api.appspot.com/random_joke');
+}
+async function fetchWiki(arg){
+  const q = (arg||'').trim();
+  if(!q) throw { type:'api' };
+  const r = await fetch('https://en.wikipedia.org/w/api.php?action=opensearch&search='+encodeURIComponent(q)+'&limit=1&format=json&origin=*');
+  const j = await r.json();
+  const title = j[1] && j[1][0];
+  if(!title) throw { type:'api' };
+  const r2 = await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(title));
+  const s = await r2.json();
+  return { title: s.title, description: s.description, extract: (s.extract||'').slice(0,2200), url: 'https://en.wikipedia.org/wiki/'+encodeURIComponent(s.title) };
+}
+function fetchTime(){
+  const d = new Date();
+  return { local: d.toString(), utc: d.toUTCString(), timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, offsetMinutes: d.getTimezoneOffset(), epoch: Date.now() };
+}
+async function fetchCrypto(arg){
+  const q = (arg||'bitcoin').replace(/\b(price|prices|rate|value|cost|in usd|usd|dollar|dollars|coin|token)\b/gi,'').trim() || 'bitcoin';
+  const sr = await fjson('https://api.coingecko.com/api/v3/search?query='+encodeURIComponent(q));
+  if(!sr.coins || !sr.coins.length) throw { type:'api' };
+  const c = sr.coins[0];
+  const p = await fjson('https://api.coingecko.com/api/v3/simple/price?ids='+c.id+'&vs_currencies=usd&include_24hr_vol=true&include_24hr_change=true');
+  const pd = p[c.id];
+  if(!pd) throw { type:'api' };
+  const d1j = await fjson('https://api.coingecko.com/api/v3/coins/'+c.id+'/market_chart?vs_currency=usd&days=1');
+  const d30j = await fjson('https://api.coingecko.com/api/v3/coins/'+c.id+'/market_chart?vs_currency=usd&days=30');
+  const d1 = d1j.prices || [], d30 = d30j.prices || [];
+  const downsample = (arr, n) => {
+    if(!arr.length) return [];
+    if(arr.length <= n) return arr;
+    const out = [];
+    for(let i=0;i<n;i++) out.push(arr[Math.floor(i*(arr.length-1)/(n-1))]);
+    return out;
+  };
+  const dayVals = d1.map(p=>p[1]);
+  return {
+    name: c.name, symbol: (c.symbol||'').toUpperCase(), img: c.large || c.thumb || '',
+    price: pd.usd, change24h: pd.usd_24h_change, vol: pd.usd_24h_vol,
+    high: dayVals.length ? Math.max.apply(null, dayVals) : null,
+    low: dayVals.length ? Math.min.apply(null, dayVals) : null,
+    pts: { '1H': downsample(d1.slice(-24), 70), '1D': downsample(d1, 70), '1W': downsample(d30.slice(-168), 70), '1M': downsample(d30, 70) }
+  };
+}
+async function fetchQr(arg){
+  const q = (arg||'').trim();
+  if(!q) throw { type:'api' };
+  return { src: 'https://api.qrserver.com/v1/create-qr-code/?size=330x330&margin=10&data='+encodeURIComponent(q), text: q };
+}
+async function fetchBarcode(arg){
+  const q = (arg||'').trim();
+  if(!q) throw { type:'api' };
+  return { src: 'https://bwipjs-api.metafloor.com/?bcid=code128&text='+encodeURIComponent(q)+'&scale=3&includetext&backgroundcolor=FFFFFF', text: q };
+}
+function calcExpr(arg){
+  const s = String(arg||'').trim().replace(/\^/g,'**').replace(/×/g,'*').replace(/÷/g,'/').replace(/\s/g,'');
+  if(!s || !/^[\d+\-*/().%]+$/.test(s)) throw { type:'api' };
+  const v = Function('"use strict";return ('+s+')')();
+  if(typeof v !== 'number' || !isFinite(v)) throw { type:'api' };
+  return { expr: String(arg||'').trim(), value: v };
+}
+async function fetchCurrency(arg){
+  const m = String(arg||'').match(/([\d.,]+)?\s*([a-zA-Z]{3})\s+(?:to|in|into|=>|=)?\s*([a-zA-Z]{3})/i);
+  if(!m) throw { type:'api' };
+  const amount = m[1] ? parseFloat(m[1].replace(/,/g,'')) : 1;
+  const from = m[2].toUpperCase(), to = m[3].toUpperCase();
+  const j = await fjson('https://open.er-api.com/v6/latest/'+from);
+  const rate = j.rates && j.rates[to];
+  if(!rate) throw { type:'api' };
+  return { amount, from, to, rate, converted: amount*rate, updated: j.time_last_update_utc || '' };
+}
+const LANGS = { english:'en', french:'fr', spanish:'es', german:'de', hindi:'hi', urdu:'ur', arabic:'ar', japanese:'ja', chinese:'zh-CN', korean:'ko', russian:'ru', portuguese:'pt', italian:'it', dutch:'nl', turkish:'tr', punjabi:'pa', bengali:'bn', tamil:'ta', telugu:'te', greek:'el', polish:'pl' };
+async function fetchTranslate(arg){
+  let text = String(arg||'').trim(), target = 'es';
+  const toM = text.match(/\s+to\s+([a-zA-Z-]+)\s*$/i);
+  if(toM){
+    text = text.slice(0, toM.index).trim();
+    target = LANGS[toM[1].toLowerCase()] || toM[1].toLowerCase();
+  }else{
+    const words = text.split(/\s+/);
+    if(words.length > 1){
+      const last = words[words.length-1].toLowerCase();
+      if(LANGS[last]){ target = LANGS[last]; text = words.slice(0,-1).join(' '); }
+    }
+  }
+  if(!text) throw { type:'api' };
+  const j = await fjson('https://api.mymemory.translated.net/get?q='+encodeURIComponent(text)+'&langpair=en|'+encodeURIComponent(target));
+  const tr = j.responseData && j.responseData.translatedText;
+  if(!tr || /MYMEMORY WARNING|QUERY LENGTH EXCEEDED/i.test(tr)) throw { type:'api' };
+  return { text, from: 'en', to: target, translated: tr };
+}
+async function fetchNews(){
+  const ids = await fjson('https://hacker-news.firebaseio.com/v0/topstories.json');
+  const top = ids.slice(0, 10);
+  const items = await Promise.all(top.map(id => fjson('https://hacker-news.firebaseio.com/v0/item/'+id+'.json')));
+  return { items: items.filter(Boolean).map(i => ({ title: i.title, url: i.url, score: i.score, by: i.by })) };
+}
+function genPassword(arg){
+  const n = parseInt(arg) || 16;
+  const len = Math.min(Math.max(n, 8), 64);
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*()_+-=';
+  const arr = new Uint32Array(len);
+  crypto.getRandomValues(arr);
+  let pw = '';
+  for(let i=0;i<len;i++) pw += chars[arr[i] % chars.length];
+  return { password: pw, length: len };
+}
+async function fetchDictionary(arg){
+  const w = (arg||'').trim();
+  if(!w) throw { type:'api' };
+  const j = await fjson('https://api.dictionaryapi.dev/api/v2/entries/en/'+encodeURIComponent(w));
+  const e = j[0];
+  if(!e) throw { type:'api' };
+  return { word: e.word, phonetic: e.phonetic || '', meanings: e.meanings.slice(0,2).map(m => ({ part: m.partOfSpeech, defs: m.definitions.slice(0,2).map(d => d.definition) })) };
+}
+
+/* ---------------- COMMODITIES (gold / silver / oil / gas — live + charts) ---------------- */
+const COMS = [
+  { id:'gold',     n:'Gold',           s:'GC=F', e:'🥇', c:'#f7c948', gsym:'XAU', aliases:['gold','xau','gold price'] },
+  { id:'silver',   n:'Silver',         s:'SI=F', e:'🥈', c:'#c3c9d4', gsym:'XAG', aliases:['silver','xag','silver price'] },
+  { id:'platinum', n:'Platinum',       s:'PL=F', e:'⚪', c:'#d9dde5', gsym:'XPT', aliases:['platinum','xpt'] },
+  { id:'palladium',n:'Palladium',      s:'PA=F', e:'⚜️', c:'#e6c79b', gsym:'XPD', aliases:['palladium','xpd'] },
+  { id:'copper',   n:'Copper',         s:'HG=F', e:'🟠', c:'#e8964b', gsym:'XCU', aliases:['copper'] },
+  { id:'wti',      n:'WTI Crude Oil',  s:'CL=F', e:'🛢️', c:'#7d9ab8', aliases:['oil','crude','crude oil','wti','oil price','wti oil'] },
+  { id:'brent',    n:'Brent Crude Oil',s:'BZ=F', e:'🛢️', c:'#5f7fa0', aliases:['brent','brent oil'] },
+  { id:'gas',      n:'Natural Gas',    s:'NG=F', e:'🔥', c:'#7fa6dd', aliases:['gas','natural gas','nat gas','natgas','gas price'] },
+  { id:'gasoline', n:'Gasoline',       s:'RB=F', e:'⛽', c:'#c9986a', aliases:['gasoline','petrol'] },
+  { id:'heating',  n:'Heating Oil',    s:'HO=F', e:'🛢️', c:'#a3835f', aliases:['heating','heating oil'] },
+  { id:'wheat',    n:'Wheat',          s:'ZW=F', e:'🌾', c:'#d3b96b', aliases:['wheat'] },
+  { id:'corn',     n:'Corn',           s:'ZC=F', e:'🌽', c:'#d3b96b', aliases:['corn','maize'] }
+];
+async function yahooChart(sym, range, interval){
+  const j = await fjson('https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(sym)+'?range='+range+'&interval='+interval);
+  const r = j.chart && j.chart.result && j.chart.result[0];
+  if(!r) throw { type:'api' };
+  return r;
+}
+async function fetchCommodity(arg){
+  const a = (arg||'').trim().toLowerCase();
+  const tok = a.split(/\s+/)[0] || a;
+  let com = COMS.find(c => c.id === a || c.n.toLowerCase() === a || (c.aliases||[]).indexOf(a) !== -1);
+  if(!com) com = COMS.find(c => c.id === tok || (c.aliases||[]).indexOf(tok) !== -1 || c.n.toLowerCase().indexOf(tok) !== -1);
+  if(!com) throw { type:'api' };
+  const tfs = [['1D','1d','5m'],['1W','5d','15m'],['1M','1mo','1d'],['3M','3mo','1wk']];
+  const out = { com:com, pts:{} };
+  let meta = null;
+  for(const [k, rng, intv] of tfs){
+    try{
+      const r = await yahooChart(com.s, rng, intv);
+      if(!meta) meta = r.meta || {};
+      const ts = r.timestamp || [];
+      const closes = (r.indicators && r.indicators.quote && r.indicators.quote[0] && r.indicators.quote[0].close) || [];
+      const pts = [];
+      for(let i=0;i<ts.length;i++){
+        if(closes[i] != null) pts.push([i, closes[i]]);
+      }
+      if(pts.length > 90) pts.splice(0, pts.length-90);
+      out.pts[k] = pts;
+    }catch(e){ out.pts[k] = []; }
+  }
+  if(!meta){
+    /* Yahoo blocked → fallback to free metals API (gold/silver/platinum/palladium) */
+    if(com.gsym){
+      const j = await fjson('https://api.gold-api.com/price/'+com.gsym);
+      return {
+        com:com, price: j.price, change: 0, high: null, low: null,
+        updated: new Date(j.updatedAt).getTime(),
+        pts:{ '1D':[], '1W':[], '1M':[], '3M':[] }
+      };
+    }
+    throw { type:'api' };
+  }
+  const price = meta.regularMarketPrice != null ? meta.regularMarketPrice : null;
+  const prev = meta.chartPreviousClose != null ? meta.chartPreviousClose : meta.previousClose;
+  const change = (price != null && prev) ? ((price - prev)/prev)*100 : 0;
+  return {
+    com:com, price: price, change: change,
+    high: meta.regularMarketDayHigh != null ? meta.regularMarketDayHigh : null,
+    low: meta.regularMarketDayLow != null ? meta.regularMarketDayLow : null,
+    updated: meta.regularMarketTime ? meta.regularMarketTime*1000 : Date.now(),
+    pts: out.pts
+  };
+}
+
+/* ---------------- SPARKLINE (crypto + commodity charts) ---------------- */
+function drawSpark(svg, pts, up){
+  const color = up ? '#16a34a' : '#dc2626';
+  if(!pts || pts.length < 2){
+    svg.innerHTML = '<text x="300" y="105" fill="#a1a1aa" font-size="13" text-anchor="middle" font-family="JetBrains Mono">No chart data</text>';
+    return;
+  }
+  const vals = pts.map(p=>p[1]);
+  const mn = Math.min.apply(null, vals), mx = Math.max.apply(null, vals);
+  const W = 600, H = 200, pad = 9;
+  const rng = (mx - mn) || 1;
+  const coords = pts.map((p,i)=>[ (i/(pts.length-1))*W, pad + (1 - (p[1]-mn)/rng) * (H - pad*2) ]);
+  const line = coords.map((c,i)=>(i?'L':'M')+c[0].toFixed(1)+','+c[1].toFixed(1)).join(' ');
+  const last = coords[coords.length-1];
+  const area = line + ' L600,200 L0,200 Z';
+  const gid = 'cg' + Math.random().toString(36).slice(2,8);
+  svg.innerHTML =
+    '<defs><linearGradient id="'+gid+'" x1="0" y1="0" x2="0" y2="1">' +
+      '<stop offset="0" stop-color="'+color+'" stop-opacity="0.22"/>' +
+      '<stop offset="1" stop-color="'+color+'" stop-opacity="0"/>' +
+    '</linearGradient></defs>' +
+    '<path d="'+area+'" fill="url(#'+gid+')"/>' +
+    '<path d="'+line+'" fill="none" stroke="'+color+'" stroke-width="2.4" stroke-linecap="round"/>' +
+    '<circle cx="'+last[0].toFixed(1)+'" cy="'+last[1].toFixed(1)+'" r="4" fill="'+color+'">' +
+      '<animate attributeName="r" values="3;6;3" dur="1.7s" repeatCount="indefinite"/>' +
+      '<animate attributeName="opacity" values="1;0.35;1" dur="1.7s" repeatCount="indefinite"/>' +
+    '</circle>';
+}
+function coinCard(coin){
+  const wrap = document.createElement('div');
+  wrap.className = 'coin-card';
+  wrap.innerHTML =
+    '<div class="coin-head">' +
+      '<div class="coin-id">' +
+        (coin.img ? '<img src="'+coin.img+'" alt="" onerror="this.style.visibility=\'hidden\'">' : '') +
+        '<div><div class="coin-name">'+escapeHtml(coin.name)+'</div><div class="coin-sym">'+escapeHtml(coin.symbol)+'</div></div>' +
+      '</div>' +
+      '<div class="coin-right">' +
+        '<div class="coin-price">$'+fmtPrice(coin.price)+'</div>' +
+        '<div class="coin-delta '+(coin.change24h >= 0 ? 'up':'down')+'">'+(coin.change24h >= 0 ? '▲ +':'▼ ')+Math.abs(coin.change24h||0).toFixed(2)+'% <span>24h</span></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="coin-tfs">'+['1H','1D','1W','1M'].map(t=>'<button class="coin-tf" data-tf="'+t+'">'+t+'</button>').join('')+'</div>' +
+    '<div class="coin-chart"><svg viewBox="0 0 600 200" preserveAspectRatio="none"></svg><div class="coin-live"><span class="dot"></span>LIVE</div></div>' +
+    '<div class="coin-stats">' +
+      '<div><span>24h High</span><b>$'+fmtPrice(coin.high)+'</b></div>' +
+      '<div><span>24h Low</span><b>$'+fmtPrice(coin.low)+'</b></div>' +
+      '<div><span>24h Volume</span><b>'+fmtVol(coin.vol)+'</b></div>' +
+    '</div>';
+  const svg = wrap.querySelector('svg');
+  let tf = '1D';
+  function draw(){
+    drawSpark(svg, coin.pts[tf], (coin.change24h || 0) >= 0);
+  }
+  draw();
+  wrap.querySelectorAll('.coin-tf').forEach(b => {
+    b.onclick = () => {
+      wrap.querySelectorAll('.coin-tf').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      tf = b.dataset.tf;
+      draw();
+    };
+  });
+  const def = wrap.querySelector('.coin-tf[data-tf="1D"]');
+  if(def) def.classList.add('on');
+  return wrap;
+}
+function commodityCard(live){
+  const c = live.com;
+  const wrap = document.createElement('div');
+  wrap.className = 'coin-card';
+  wrap.innerHTML =
+    '<div class="coin-head">' +
+      '<div class="coin-id">' +
+        '<span class="com-ic" style="background:'+c.c+'26">'+c.e+'</span>' +
+        '<div><div class="coin-name">'+escapeHtml(c.n)+'</div><div class="coin-sym">'+escapeHtml(c.s)+' · commodities</div></div>' +
+      '</div>' +
+      '<div class="coin-right">' +
+        '<div class="coin-price">$'+fmtPrice(live.price)+'</div>' +
+        '<div class="coin-delta '+(live.change >= 0 ? 'up':'down')+'">'+(live.change >= 0 ? '▲ +':'▼ ')+Math.abs(live.change||0).toFixed(2)+'% <span>24h</span></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="coin-tfs">'+['1D','1W','1M','3M'].map(t=>'<button class="coin-tf" data-tf="'+t+'">'+t+'</button>').join('')+'</div>' +
+    '<div class="coin-chart"><svg viewBox="0 0 600 200" preserveAspectRatio="none"></svg><div class="coin-live"><span class="dot"></span>LIVE</div></div>' +
+    '<div class="coin-stats">' +
+      '<div><span>Day High</span><b>$'+fmtPrice(live.high)+'</b></div>' +
+      '<div><span>Day Low</span><b>$'+fmtPrice(live.low)+'</b></div>' +
+      '<div><span>Updated</span><b>'+new Date(live.updated).toLocaleTimeString()+'</b></div>' +
+    '</div>';
+  const svg = wrap.querySelector('svg');
+  let tf = '1D';
+  function draw(){ drawSpark(svg, live.pts[tf], (live.change || 0) >= 0); }
+  draw();
+  wrap.querySelectorAll('.coin-tf').forEach(b => {
+    b.onclick = () => {
+      wrap.querySelectorAll('.coin-tf').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      tf = b.dataset.tf;
+      draw();
+    };
+  });
+  const def = wrap.querySelector('.coin-tf[data-tf="1D"]');
+  if(def) def.classList.add('on');
+  return wrap;
+}
+
+/* ---------------- IMAGE (pollinations) ---------------- */
+async function genImage(prompt){
+  const seed = Math.floor(Math.random()*1000000);
+  const url = 'https://image.pollinations.ai/prompt/'+encodeURIComponent(prompt)+'?width=1024&height=1024&nologo=true&seed='+seed;
+  let src = url;
+  try{
+    const r = await fetch(url);
+    if(!r.ok) throw { type:'api' };
+    const b = await r.blob();
+    if(b && b.size > 0) src = URL.createObjectURL(b);
+  }catch(e){
+    if(e && e.type === 'api') throw e;
+  }
+  return { src };
+}
+function imageCard(src, opts){
+  const wrap = document.createElement('div');
+  wrap.className = 'img-card';
+  wrap.innerHTML =
+    '<img class="img-main" alt="Generated image">' +
+    '<div class="img-actions">' +
+      '<button class="btn-a pri" data-act="dl">'+IC.dl+'Download</button>' +
+      (opts.upscale ? '<button class="btn-a" data-act="up">'+IC.upscale+'Upscale</button>' : '') +
+      (opts.prompt ? '<button class="btn-a" data-act="re">'+IC.refresh+'Retry</button>' : '') +
+    '</div>';
+  const img = wrap.querySelector('.img-main');
+  img.src = src;
+  img.onload = scrollBottom;
+  wrap.querySelectorAll('.btn-a').forEach(b => {
+    b.onclick = () => {
+      const act = b.dataset.act;
+      if(act === 'dl') downloadImage(img.src, 'thing-'+Date.now()+'.png');
+      else if(act === 'up') doUpscale(img, opts.prompt);
+      else if(act === 're') regenImage(img, opts.prompt);
+    };
+  });
+  return wrap;
+}
+async function downloadImage(src, name){
+  try{
+    const r = await fetch(src, { mode:'cors' });
+    if(r.ok){
+      const b = await r.blob();
+      const u = URL.createObjectURL(b);
+      const a = document.createElement('a');
+      a.href = u; a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(u), 4000);
+      toastMsg('Downloaded ✓');
+      return;
+    }
+  }catch(e){}
+  const a = document.createElement('a');
+  a.href = src; a.target = '_blank'; a.rel = 'noopener'; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+async function doUpscale(img, prompt){
+  toastMsg('Upscaling…');
+  try{
+    const url = 'https://image.pollinations.ai/prompt/'+encodeURIComponent(prompt)+'?width=2048&height=2048&nologo=true&seed='+Math.floor(Math.random()*1000000);
+    const r = await fetch(url);
+    if(!r.ok) throw new Error('x');
+    const b = await r.blob();
+    img.src = URL.createObjectURL(b);
+    toastMsg('Upscaled to 2048×2048 ✓');
+  }catch(e){ toastMsg('Could not upscale right now'); }
+}
+async function regenImage(img, prompt){
+  toastMsg('Regenerating…');
+  try{
+    const url = 'https://image.pollinations.ai/prompt/'+encodeURIComponent(prompt)+'?width=1024&height=1024&nologo=true&seed='+Math.floor(Math.random()*1000000);
+    const r = await fetch(url);
+    if(!r.ok) throw new Error('x');
+    const b = await r.blob();
+    img.src = URL.createObjectURL(b);
+    img.onload = scrollBottom;
+  }catch(e){ toastMsg('Could not regenerate right now'); }
+}
+
+/* ---------------- IMAGE UPLOAD → VISION DESCRIPTION ---------------- */
+function fileToDataUrl(file, maxDim){
+  maxDim = maxDim || 900;
+  return new Promise(res => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const s = Math.min(1, maxDim/Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width*s));
+      c.height = Math.max(1, Math.round(img.height*s));
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      res(c.toDataURL('image/jpeg', 0.85));
+      URL.revokeObjectURL(url);
+    };
+    img.onerror = () => { res(null); URL.revokeObjectURL(url); };
+    img.src = url;
+  });
+}
+function imgToPixels(file, maxDim){
+  maxDim = maxDim || 1200;
+  return new Promise(res => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const s = Math.min(1, maxDim/Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width*s));
+      c.height = Math.max(1, Math.round(img.height*s));
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      let d = null;
+      try{ d = ctx.getImageData(0,0,c.width,c.height); }catch(e){}
+      res(d);
+      URL.revokeObjectURL(url);
+    };
+    img.onerror = () => { res(null); URL.revokeObjectURL(url); };
+    img.src = url;
+  });
+}
+function pickImage(){
+  return new Promise(res => {
+    const fi = document.createElement('input');
+    fi.type = 'file';
+    fi.accept = 'image/*';
+    fi.onchange = () => res(fi.files && fi.files[0] ? fi.files[0] : null);
+    fi.click();
+  });
+}
+function zxDecode(d, formats){
+  if(typeof ZXing === 'undefined' || !d) return null;
+  try{
+    const hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+    const lum = new ZXing.RGBLuminanceSource(d.data, d.width, d.height);
+    const bmp = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lum));
+    const reader = new ZXing.MultiFormatReader();
+    reader.setHints(hints);
+    const r = reader.decode(bmp);
+    return r ? r.getText() : null;
+  }catch(e){ return null; }
+}
+async function decodeQR(file){
+  const d = await imgToPixels(file);
+  if(!d) return null;
+  if(typeof jsQR !== 'undefined'){
+    try{
+      const code = jsQR(d.data, d.width, d.height);
+      if(code && code.data) return code.data;
+    }catch(e){}
+  }
+  if(typeof ZXing !== 'undefined'){
+    return zxDecode(d, [ZXing.BarcodeFormat.QR_CODE]);
+  }
+  return null;
+}
+async function decodeBarcode(file){
+  const d = await imgToPixels(file);
+  if(!d || typeof ZXing === 'undefined') return null;
+  return zxDecode(d, [
+    ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.CODE_93,
+    ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8, ZXing.BarcodeFormat.UPC_A,
+    ZXing.BarcodeFormat.UPC_E, ZXing.BarcodeFormat.ITF, ZXing.BarcodeFormat.CODABAR
+  ]);
+}
+async function handleUpload(file){
+  if(!file || !/^image\//.test(file.type)) return;
+  if(busy){ toastMsg('Thing is still responding…'); return; }
+  busy = true;
+  const dataUrl = await fileToDataUrl(file);
+  if(!dataUrl){
+    toastMsg('Could not read that image');
+    busy = false;
+    return;
+  }
+  addUser('📷 Image', '<img class="um-img" src="'+dataUrl+'" alt="Uploaded image">');
+  startTimer();
+  setStatus('think');
+  thinkTimer = setTimeout(()=>setStatus('work'), 7000);
+  try{
+    const reply = await groqVision(dataUrl);
+    clearTimeout(thinkTimer);
+    const t = stopTimer();
+    setStatus('idle');
+    addAI('📷 **Here\'s what I see in your image:**\n\n' + reply, null, t);
+    pushHistory('assistant', reply);
+    busy = false;
+  }catch(e){
+    clearTimeout(thinkTimer); stopTimer();
+    if(e && e.type === 'network'){
+      setStatus('net');
+      addAI('⚠️ **Network connection error** — check your internet and try again.');
+    }else{
+      setStatus('error');
+      addAI('⚠️ **Error found** — I could not read that image right now. Please try again.');
+    }
+    setTimeout(()=>setStatus('idle'), 6000);
+    busy = false;
+  }
+}
+
+/* ---------------- VOICE INPUT (free built-in speech engine) ---------------- */
+let rec = null, voiceBase = '', finalAcc = '';
+function initVoice(){
+  try{
+    const S = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!S) return;
+    rec = new S();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = 'en-US';
+    rec.onresult = e => {
+      let interim = '';
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        const r = e.results[i];
+        if(r.isFinal) finalAcc += r[0].transcript;
+        else interim += r[0].transcript;
+      }
+      input.value = voiceBase + finalAcc + interim;
+      autoGrow();
+    };
+    rec.onerror = () => { micBtn.classList.remove('listening'); finalAcc=''; };
+    rec.onend = () => { micBtn.classList.remove('listening'); finalAcc=''; };
+  }catch(e){ rec = null; }
+}
+initVoice();
+micBtn.addEventListener('click', () => {
+  if(!rec){ toastMsg('Voice input is not supported in this browser'); return; }
+  if(micBtn.classList.contains('listening')){
+    try{ rec.stop(); }catch(e){}
+    return;
+  }
+  voiceBase = input.value + (input.value ? ' ' : '');
+  finalAcc = '';
+  try{
+    rec.start();
+    micBtn.classList.add('listening');
+  }catch(e){ toastMsg('Could not start the microphone'); }
+});
+
+/* ---------------- MAIN FLOW ---------------- */
+async function modelAnswer(userText){
+  busy = true;
+  startTimer();
+  setStatus('think');
+  thinkTimer = setTimeout(()=>setStatus('work'), 7000);
+  try{
+    let searchData = { text:'', topUrl:'' };
+    if(webOn){
+      searchData = await webSearch(userText);
+      if(searchData.topUrl) setDeep({ query: userText, url: searchData.topUrl, kind:'web' });
+    }
+    const messages = [
+      { role:'system', content: buildSystem() + (webOn ? '\n\n[CURRENT LIVE SEARCH DATA]\n' + searchData.text : '') },
+      ...recentHistory(),
+      { role:'user', content: userText }
+    ];
+    const reply = await groqChat(messages);
+    clearTimeout(thinkTimer);
+    const t = stopTimer();
+    setStatus('idle');
+    addAI(reply, null, t);
+    pushHistory('assistant', reply);
+    extractMemory(userText, reply);
+    busy = false;
+    return { ok:true, reply };
+  }catch(e){
+    clearTimeout(thinkTimer); stopTimer();
+    if(e && e.type === 'network'){
+      setStatus('net');
+      addAI('⚠️ **Network connection error** — I could not reach the service. Please check your internet connection and try again.');
+    }else{
+      setStatus('error');
+      addAI('⚠️ **Error found** — something went wrong while answering. Please try again.');
+    }
+    setTimeout(()=>setStatus('idle'), 6500);
+    busy = false;
+    return { ok:false, type: e && e.type };
+  }
+}
+
+/* ---------------- DEEP DIVE ---------------- */
+function deepIntent(t){
+  return /^(yes|yeah|yup|yep|sure|ok|okay|alright|of course|absolutely|yes please|please do|do it|go ahead|more)\b/i.test(t)
+      || /\b(tell me more|more (info|information|details|detail|please|about that)|continue|go on|dig deeper|go deeper|elaborate|expand on (that|this|it)|explain more|read more|show more|full article|full page)\b/i.test(t);
+}
+async function deepAnswer(triggerText){
+  busy = true;
+  startTimer();
+  setStatus('think');
+  thinkTimer = setTimeout(()=>setStatus('work'), 7000);
+  try{
+    let content = '';
+    const d = getDeep();
+    if(d && d.url) content = await readPage(d.url);
+    if(!content && webOn){
+      const r2 = await webSearch(d ? d.query : triggerText);
+      content = r2.text;
+    }
+    if(!content) content = 'No deeper content could be loaded for this topic.';
+    const messages = [
+      { role:'system', content: buildSystem() + '\n\n[FULL SOURCE CONTENT THE USER WANTS MORE DETAILS FROM — use it to continue your explanation]\n' + content },
+      ...recentHistory(),
+      { role:'user', content: 'The user said: "' + triggerText + '". Continue your previous answer with more depth, detail and structure, using the source content above. Do not mention links, URLs or sources unless asked.' }
+    ];
+    const reply = await groqChat(messages);
+    clearTimeout(thinkTimer);
+    const t = stopTimer();
+    setStatus('idle');
+    addAI(reply, null, t);
+    pushHistory('assistant', reply);
+    extractMemory(triggerText, reply);
+    busy = false;
+  }catch(e){
+    clearTimeout(thinkTimer); stopTimer();
+    if(e && e.type === 'network'){
+      setStatus('net');
+      addAI('⚠️ **Network connection error** — check your internet and try again.');
+    }else{
+      setStatus('error');
+      addAI('⚠️ **Error found** — could not load more details right now.');
+    }
+    setTimeout(()=>setStatus('idle'), 6000);
+    busy = false;
+  }
+}
+
+/* ---------------- STANDARD COMMAND RUNNER (AI fallback) ---------------- */
+async function runStd(name, arg, o){
+  let live = null, failed = false;
+  if(o.fetcher){
+    try{ live = await o.fetcher(arg); }
+    catch(e){
+      if(e && e.type === 'network'){
+        stopTimer(); setStatus('net');
+        addAI('⚠️ **Network connection error** — check your internet and try again.');
+        setTimeout(()=>setStatus('idle'), 6000);
+        busy = false;
+        return;
+      }
+      failed = true;
+    }
+  }
+  if(failed || live === null){
+    busy = false; stopTimer();
+    await modelAnswer(('/'+name+' '+(arg||'')).trim());
+    return;
+  }
+  try{
+    if(o.direct){
+      const t = stopTimer();
+      setStatus('idle');
+      const txt = o.direct(live, arg);
+      addAI(txt, null, t);
+      pushHistory('assistant', txt);
+      busy = false;
+      return;
+    }
+    setStatus('think');
+    thinkTimer = setTimeout(()=>setStatus('work'), 7000);
+    const messages = [
+      { role:'system', content: buildSystem() + '\n\n' + o.sys },
+      ...recentHistory(),
+      { role:'user', content: (o.userLine ? o.userLine(arg) : '') + '\n\nLIVE DATA:\n' + JSON.stringify(live).slice(0,6000) }
+    ];
+    const reply = await groqChat(messages);
+    clearTimeout(thinkTimer);
+    const t = stopTimer();
+    setStatus('idle');
+    addAI(reply, o.card ? o.card(live, arg) : null, t);
+    pushHistory('assistant', reply);
+    if(o.after) o.after(live, arg);
+    extractMemory('/'+name+' '+(arg||''), reply);
+    busy = false;
+  }catch(e){
+    clearTimeout(thinkTimer); stopTimer();
+    if(e && e.type === 'network'){
+      setStatus('net');
+      addAI(o.netMsg || '⚠️ **Network connection error** — check your internet and try again.');
+    }else{
+      setStatus('error');
+      addAI(o.errMsg || '⚠️ **Error found** — I could not complete this request.');
+    }
+    setTimeout(()=>setStatus('idle'), 6000);
+    busy = false;
+  }
+}
+
+/* ---------------- COMMAND DISPATCH ---------------- */
+async function runCommand(name, arg){
+  if(!COMMANDS.find(c => c.name === name)){
+    await modelAnswer('/'+name+' '+(arg||''));
+    return;
+  }
+  setDeep(null);
+  busy = true;
+  startTimer();
+
+  switch(name){
+
+    case 'help':
+      await runStd(name, arg, {
+        fetcher: async()=>({ list: COMMANDS.map(c=>'/'+c.name+' — '+c.desc).join('\n') }),
+        sys: 'Explain the following commands briefly and clearly, each with a tiny usage example where useful. Keep it compact.',
+        userLine: ()=>'The user opened the command list. Explain these commands:\n' + COMMANDS.map(c=>'/'+c.name+' — '+c.desc).join('\n'),
+        errMsg:'⚠️ **Error found** — could not load the command list right now.'
+      });
+      break;
+
+    case 'weather':
+      await runStd(name, arg, {
+        fetcher: fetchWeather,
+        sys: 'You have live weather data for a place. Present it clearly: current conditions, wind, and the 3-day outlook. Be short and friendly.',
+        userLine: (a)=>'The user asked about weather for: "' + a + '"',
+        errMsg:'⚠️ **Error found** — could not fetch weather for that place.'
+      });
+      break;
+
+    case 'ip':
+      await runStd(name, arg, {
+        fetcher: fetchIp,
+        sys: 'You have live network/location info of the user. Explain it in friendly human terms: where their connection appears to be, provider, timezone.',
+        userLine: ()=>'The user asked for their IP / connection info.',
+        errMsg:'⚠️ **Error found** — could not read your network info.'
+      });
+      break;
+
+    case 'crypto':
+      await runStd(name, arg, {
+        fetcher: fetchCrypto,
+        sys: 'You have live crypto market data (price, 24h change, high, low, volume). Analyze it like a market analyst: current price, the 24h up/down move, quick context. Keep it compact. Do NOT show raw timestamps or chart arrays.',
+        userLine: (a)=>'The user asked about this coin: "' + a + '"',
+        card: live => coinCard(live),
+        errMsg:'⚠️ **Error found** — could not fetch market data for that coin.'
+      });
+      break;
+
+    case 'commodity':
+      await runStd(name, arg, {
+        fetcher: fetchCommodity,
+        sys: 'You have live commodity market data (name, current price, change %, day high/low). Analyze it briefly like a market analyst: the current price level, the 24h move, and one short note on what typically drives this commodity. Keep it compact.',
+        userLine: (a)=>'The user asked about this commodity: "' + a + '"',
+        card: live => commodityCard(live),
+        errMsg:'⚠️ **Error found** — could not fetch data for that commodity. Try gold, silver, oil, gas…'
+      });
+      break;
+
+    case 'time':
+      await runStd(name, arg, {
+        fetcher: async()=>fetchTime(),
+        sys: 'You have the exact current time data. Answer when asked about the time, timezone or date.',
+        userLine: (a)=>'The user asked: "' + (a||'current time') + '"',
+        errMsg:'⚠️ **Error found** — could not compute the time.'
+      });
+      break;
+
+    case 'iss':
+      await runStd(name, arg, {
+        fetcher: fetchIss,
+        sys: 'You have the LIVE location of the ISS. Explain where the ISS is right now, the exact coordinates. Make it exciting and brief.',
+        userLine: ()=>'The user asked for the live ISS location.',
+        errMsg:'⚠️ **Error found** — could not reach the ISS tracker right now.'
+      });
+      break;
+
+    case 'joke':
+      await runStd(name, arg, {
+        fetcher: fetchJoke,
+        sys: 'You have a joke (setup + punchline). Present it with great timing. Keep it natural.',
+        userLine: ()=>'Tell the user this joke with style:',
+        errMsg:'⚠️ **Error found** — the joke box is empty right now.'
+      });
+      break;
+
+    case 'wiki':
+      await runStd(name, arg, {
+        fetcher: fetchWiki,
+        sys: 'You have a Wikipedia summary for the user. Explain the topic clearly and briefly using the extract. IMPORTANT: never include any links or URLs in your reply.',
+        userLine: (a)=>'The user wants to know about: "' + a + '"',
+        after: (live, a)=>{ setDeep({ query:a, url: live.url, title: live.title, kind:'wiki' }); },
+        errMsg:'⚠️ **Error found** — could not find an article for that.'
+      });
+      break;
+
+    case 'summarize': {
+      if((arg||'').trim().length < 120){
+        setStatus('idle'); stopTimer(); busy = false;
+        addAI('Paste a longer text after **/summarize** (at least a few sentences) and I will shrink it down for you ✂️');
+        return;
+      }
+      setStatus('think');
+      thinkTimer = setTimeout(()=>setStatus('work'), 7000);
+      try{
+        const chunks = [];
+        let s = arg.trim();
+        while(s.length > 0){
+          if(s.length <= 2600){ chunks.push(s); break; }
+          let cut = s.lastIndexOf('.', 2600);
+          if(cut < 300) cut = s.lastIndexOf(' ', 2600);
+          chunks.push(s.slice(0, cut+1));
+          s = s.slice(cut+1);
+        }
+        const sums = [];
+        for(const c of chunks){
+          sums.push(await groqChat([
+            { role:'system', content:'Summarize the following text in 2-3 short sentences. Keep key facts and numbers.' },
+            { role:'user', content:c }
+          ], 300));
+        }
+        const reply = await groqChat([
+          { role:'system', content:'Combine these partial summaries into one clean, well-structured summary with a short heading. Use **bold** for the most important point.' },
+          { role:'user', content: sums.join('\n---\n') }
+        ]);
+        clearTimeout(thinkTimer);
+        const t = stopTimer();
+        setStatus('idle');
+        addAI(reply, null, t);
+        pushHistory('assistant', reply);
+        busy = false;
+      }catch(e){
+        clearTimeout(thinkTimer); stopTimer();
+        if(e && e.type === 'network'){ setStatus('net'); addAI('⚠️ **Network connection error** — check your internet and try again.'); }
+        else { setStatus('error'); addAI('⚠️ **Error found** — could not summarize that text.'); }
+        setTimeout(()=>setStatus('idle'), 6000);
+        busy = false;
+      }
+      break;
+    }
+
+    case 'image':
+      await runStd(name, arg, {
+        fetcher: genImage,
+        sys: 'Image generation succeeded — just acknowledge it briefly. Do not paste any URLs.',
+        userLine: (a)=>'The user asked for an image of: "' + a + '"',
+        card: live => imageCard(live.src, { upscale:true, prompt:arg }),
+        errMsg:'⚠️ **Error found** — the image maker is busy. Try a different description or try again.'
+      });
+      break;
+
+    case 'qr':
+      await runStd(name, arg, {
+        fetcher: fetchQr,
+        sys: 'A QR code was generated for the user\'s content. Acknowledge it in one short line. Do not paste any URLs.',
+        userLine: (a)=>'The user generated a QR code for: "' + a + '"',
+        card: live => imageCard(live.src, { upscale:false, prompt:null }),
+        errMsg:'⚠️ **Error found** — could not make a QR code for that.'
+      });
+      break;
+
+    case 'barcode':
+      await runStd(name, arg, {
+        fetcher: fetchBarcode,
+        sys: 'A barcode was generated for the user\'s content. Acknowledge it in one short line. Do not paste any URLs.',
+        userLine: (a)=>'The user generated a barcode for: "' + a + '"',
+        card: live => imageCard(live.src, { upscale:false, prompt:null }),
+        errMsg:'⚠️ **Error found** — could not make a barcode for that.'
+      });
+      break;
+
+    case 'qrread':
+    case 'barcoderead': {
+      const isQR = name === 'qrread';
+      setStatus('think');
+      thinkTimer = setTimeout(()=>setStatus('work'), 5000);
+      const file = await pickImage();
+      if(!file){
+        clearTimeout(thinkTimer); setStatus('idle'); stopTimer(); busy = false;
+        return;
+      }
+      addUser((isQR?'/qrread':'/barcoderead') + ' 📷', '<img class="um-img" src="'+URL.createObjectURL(file)+'" alt="Code image">');
+      const text = isQR ? await decodeQR(file) : await decodeBarcode(file);
+      clearTimeout(thinkTimer);
+      const t = stopTimer();
+      setStatus('idle');
+      if(text){
+        addAI('✅ **'+(isQR?'QR code':'Barcode')+' decoded:**\n```\n'+text+'\n```', null, t);
+        pushHistory('assistant', 'Decoded: '+text);
+      }else{
+        addAI('⚠️ I could not find a '+(isQR?'QR code':'barcode')+' in that image. Try a clearer, closer photo.', null, t);
+      }
+      busy = false;
+      break;
+    }
+
+    case 'calc': {
+      let live = null;
+      try{ live = calcExpr(arg); }
+      catch(e){
+        busy = false; stopTimer();
+        await modelAnswer('/calc '+(arg||''));
+        return;
+      }
+      const t = stopTimer();
+      setStatus('idle');
+      const v = Number.isInteger(live.value) ? live.value.toLocaleString('en-US') : parseFloat(live.value.toFixed(6));
+      const txt = '`'+escapeHtml(live.expr)+'` = **'+v+'**';
+      addAI(txt, null, t);
+      pushHistory('assistant', 'Result: '+v);
+      busy = false;
+      break;
+    }
+
+    case 'password': {
+      const live = genPassword(arg);
+      const t = stopTimer();
+      setStatus('idle');
+      addAI('Here is your secure password (**'+live.length+' characters**):\n```\n'+live.password+'\n```\nKeep it safe 🔒', null, t);
+      pushHistory('assistant', 'Generated password');
+      busy = false;
+      break;
+    }
+
+    case 'currency':
+      await runStd(name, arg, {
+        fetcher: fetchCurrency,
+        sys: 'You have live currency conversion data. Present the conversion clearly with the exchange rate. Keep it short.',
+        userLine: (a)=>'The user wants a currency conversion: "' + a + '"',
+        errMsg:'⚠️ **Error found** — could not convert that currency.'
+      });
+      break;
+
+    case 'translate':
+      await runStd(name, arg, {
+        fetcher: fetchTranslate,
+        sys: 'You have a translation result. Present it cleanly: original text, language, translation. Do not add extra commentary.',
+        userLine: (a)=>'The user wants to translate: "' + a + '"',
+        errMsg:'⚠️ **Error found** — could not translate that.'
+      });
+      break;
+
+    case 'news':
+      await runStd(name, arg, {
+        fetcher: fetchNews,
+        sys: 'You have the top 10 tech news stories (Hacker News). Summarize the most interesting 5 in one or two lines each, then list the rest as titles. Keep it compact.',
+        userLine: ()=>'The user wants the top tech news stories.',
+        errMsg:'⚠️ **Error found** — could not load the news right now.'
+      });
+      break;
+
+    case 'dictionary':
+      await runStd(name, arg, {
+        fetcher: fetchDictionary,
+        sys: 'You have dictionary data for a word (definition, phonetic, part of speech). Present the meaning cleanly and briefly.',
+        userLine: (a)=>'The user wants the meaning of: "' + a + '"',
+        errMsg:'⚠️ **Error found** — could not find that word.'
+      });
+      break;
+  }
+}
+
+/* ---------------- SEND ---------------- */
+function send(){
+  const text = input.value.trim();
+  if(!text) return;
+  if(busy){ toastMsg('Thing is still responding…'); return; }
+  input.value = '';
+  autoGrow();
+  popup.classList.remove('show');
+  if(text.charAt(0) === '/'){
+    const m = text.split(/\s+/);
+    const cmdName = m[0].slice(1).toLowerCase();
+    const arg = m.slice(1).join(' ');
+    addUser(text);
+    runCommand(cmdName, arg);
+  }else{
+    addUser(text);
+    if(getDeep() && deepIntent(text)){
+      deepAnswer(text);
+    }else{
+      modelAnswer(text);
+    }
+  }
+}
+
+/* ---------------- POPUPS ---------------- */
+function renderPopup(filter){
+  const list = COMMANDS.filter(c => c.name.indexOf(filter) === 0);
+  if(!list.length){ popup.classList.remove('show'); return; }
+  popup.innerHTML = list.map(c =>
+    '<div class="sp-item" data-cmd="'+c.name+'">' +
+      '<span class="cmd-ic">'+c.icon+'</span>' +
+      '<div><div class="cmd-name">/'+c.name+'</div><div class="cmd-desc">'+c.desc+'</div></div>' +
+    '</div>'
+  ).join('');
+  popup.classList.add('show');
+}
+function renderComPopup(filter){
+  const f = (filter||'').toLowerCase();
+  const list = COMS.filter(c =>
+    !f || c.id.indexOf(f) === 0 || c.n.toLowerCase().indexOf(f) !== -1 || (c.aliases||[]).some(a => a.indexOf(f) !== -1)
+  );
+  if(!list.length){ popup.classList.remove('show'); return; }
+  popup.innerHTML = list.map(c =>
+    '<div class="sp-item" data-com="'+c.id+'">' +
+      '<span class="com-ic" style="background:'+c.c+'26">'+c.e+'</span>' +
+      '<div><div class="cmd-name">'+escapeHtml(c.n)+'</div><div class="cmd-desc">live price + chart · '+escapeHtml(c.s)+'</div></div>' +
+    '</div>'
+  ).join('');
+  popup.classList.add('show');
+}
+popup.addEventListener('click', e => {
+  const it = e.target.closest('.sp-item');
+  if(!it) return;
+  if(it.dataset.cmd){
+    input.value = input.value.replace(/\/([a-zA-Z]*)$/, '/' + it.dataset.cmd + ' ');
+  }else if(it.dataset.com){
+    input.value = input.value.replace(/\/commodity\s*[a-zA-Z ]*$/, '/commodity ' + it.dataset.com + ' ');
+  }
+  input.focus();
+  popup.classList.remove('show');
+  autoGrow();
+});
+
+/* ---------------- SETTINGS ---------------- */
+function renderSettings(){
+  const wt = $('#webTgl');
+  if(wt) wt.classList.toggle('on', webOn);
+  updateMemCount();
+  hintBar.textContent = 'web search: ' + (webOn?'on':'off') + ' · type / for all commands · mic for voice · 📎 uploads an image';
+}
+
+/* ---------------- EVENTS ---------------- */
+sendBtn.addEventListener('click', send);
+input.addEventListener('keydown', e => {
+  if(e.key === 'Enter' && !e.shiftKey){
+    e.preventDefault();
+    send();
+  }
+});
+input.addEventListener('input', () => {
+  autoGrow();
+  const line = input.value.split('\n').pop();
+  let m = line.match(/^\/([a-zA-Z]*)$/);
+  if(m){
+    if(m[1] === 'commodity') renderComPopup('');
+    else renderPopup(m[1]);
+    return;
+  }
+  m = line.match(/^\/commodity\s+([a-zA-Z ]*)$/);
+  if(m){ renderComPopup(m[1].trim()); return; }
+  popup.classList.remove('show');
+});
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape'){
+    popup.classList.remove('show');
+    closeSettings();
+  }
+});
+function autoGrow(){
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 150) + 'px';
+}
+
+attachBtn.addEventListener('click', async () => {
+  const file = await pickImage();
+  if(file) handleUpload(file);
+});
+
+let sideOpen = window.matchMedia('(min-width: 761px)').matches;
+function applySide(){
+  document.body.classList.toggle('side-closed', !sideOpen);
+}
+function toggleSide(v){
+  sideOpen = (typeof v === 'boolean') ? v : !sideOpen;
+  applySide();
+}
+applySide();
+$('#menuBtn').addEventListener('click', () => toggleSide());
+
+$('#hideChats').addEventListener('click', () => {
+  hiddenChats = !hiddenChats;
+  document.body.classList.toggle('chat-hidden', hiddenChats);
+  $('#hideChats').innerHTML = hiddenChats ? IC.eye : IC.eyeOff;
+  toastMsg(hiddenChats ? 'Chats hidden' : 'Chats visible');
+});
+
+function openSettings(){
+  settingsPanel.classList.add('open');
+  overlay.classList.add('show');
+}
+function closeSettings(){
+  settingsPanel.classList.remove('open');
+  overlay.classList.remove('show');
+}
+$('#settingsBtn').addEventListener('click', openSettings);
+$('#closeSettings').addEventListener('click', closeSettings);
+overlay.addEventListener('click', closeSettings);
+
+$('#webTgl').addEventListener('click', () => {
+  webOn = !webOn;
+  localStorage.setItem('thing_web', webOn ? '1' : '0');
+  renderSettings();
+  toastMsg(webOn ? 'Web search turned ON' : 'Web search turned OFF');
+});
+
+$('#newChatBtn').addEventListener('click', () => {
+  if(busy){ toastMsg('Thing is still responding…'); return; }
+  newChat();
+});
+chatList.addEventListener('click', e => {
+  const del = e.target.closest('.ci-del');
+  if(del){
+    e.stopPropagation();
+    deleteChat(del.dataset.id);
+    return;
+  }
+  const item = e.target.closest('.chat-item');
+  if(item) switchChat(item.dataset.id);
+});
+chatInner.addEventListener('click', e => {
+  const ch = e.target.closest('.chip');
+  if(ch){
+    input.value = ch.dataset.txt;
+    input.focus();
+    autoGrow();
+  }
+});
+
+$('#clearChat').addEventListener('click', () => {
+  clearAllChats();
+  toastMsg('All chats deleted');
+  closeSettings();
+});
+$('#clearMem').addEventListener('click', () => {
+  MEMORY = [];
+  saveMemory();
+  updateMemCount();
+  toastMsg('Memory cleared — I forgot everything about you');
+  closeSettings();
+});
+
+/* ---------------- INIT ---------------- */
+loadChats();
+if(!cur) newChat();
+else { renderChatList(); renderChat(); }
+renderSettings();
+setStatus('idle');
+
+})();
+</script>
+</body>
+</html>
