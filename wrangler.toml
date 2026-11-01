@@ -20,3 +20,5 @@ enabled = true
 
 # The Groq key is NOT stored here. Add it as a secret:
 #   npx wrangler secret put GROQ_API_KEY
+
+
